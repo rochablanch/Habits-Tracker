@@ -33,10 +33,28 @@ Sin backend en la v1. Sin cuentas de usuario. Todo el estado vive en el disposit
 ```
 src/
   theme/          Contexto de tema claro/oscuro/sistema
-  (a completar en próximas etapas: db/, habits/, calendar/, stats/, settings/, onboarding/)
+  db/             Modelo de datos (Dexie/IndexedDB) y capa de acceso
+    types.ts             Tipos: Habito, RegistroDiario, Categoria, Configuracion
+    db.ts                Esquema Dexie, versión 1, siembra inicial
+    defaultCategories.ts Categorías sugeridas (editables/eliminables)
+    habitsRepo.ts         CRUD de hábitos + pausar/archivar/reactivar/duplicar/eliminar
+    logsRepo.ts           Registro diario (upsert, sin duplicados) + consultas
+    categoriesRepo.ts     CRUD de categorías (reasigna hábitos al eliminar)
+    settingsRepo.ts       Configuración general (no incluye tema, ver arriba)
+    __tests__/            Pruebas automáticas de toda la capa de datos (Vitest)
+  utils/date.ts   Utilidades de fecha (formato YYYY-MM-DD como clave interna)
+  test/setup.ts   Configuración de pruebas (fake-indexeddb, jest-dom)
+  (a completar en próximas etapas: habits/, calendar/, stats/, settings/, onboarding/)
 public/
   icon.svg        Ícono base de la app (pendiente set completo de iconos PWA en Etapa 8)
 ```
+
+### Notas del modelo de datos
+
+- Claves de fecha en formato `YYYY-MM-DD` (orden alfabético = orden cronológico, evita ambigüedades de zona horaria).
+- `registros` tiene un índice único compuesto `[habitoId+fecha]`: la base de datos misma impide duplicados, además de la lógica de "upsert" en `logsRepo`.
+- Un día "pendiente" (sin marcar) simplemente no tiene fila en `registros` — no se guardan filas vacías.
+- `eliminarHabito` sin opciones = borrado suave (oculta, conserva historial). `eliminarHabito(id, { borrarHistorial: true })` = borrado permanente e irreversible de hábito + registros.
 
 ## Reglas de trabajo
 
@@ -49,7 +67,7 @@ public/
 ## Estado del proyecto
 
 - [x] Etapa 0 — Estructura base, Git, PWA base, tema claro/oscuro/sistema
-- [ ] Etapa 1 — Modelo de datos y almacenamiento local
+- [x] Etapa 1 — Modelo de datos y almacenamiento local (18/18 pruebas automáticas pasando)
 - [ ] Etapa 2 — CRUD de hábitos
 - [ ] Etapa 3 — Panel principal y registro diario
 - [ ] Etapa 4 — Calendario mensual
