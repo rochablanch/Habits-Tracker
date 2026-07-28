@@ -41,10 +41,17 @@ src/
     logsRepo.ts           Registro diario (upsert, sin duplicados) + consultas
     categoriesRepo.ts     CRUD de categorías (reasigna hábitos al eliminar)
     settingsRepo.ts       Configuración general (no incluye tema, ver arriba)
+    hooks.ts              Hooks de lectura reactiva (dexie-react-hooks/useLiveQuery)
     __tests__/            Pruebas automáticas de toda la capa de datos (Vitest)
   utils/date.ts   Utilidades de fecha (formato YYYY-MM-DD como clave interna)
   test/setup.ts   Configuración de pruebas (fake-indexeddb, jest-dom)
-  (a completar en próximas etapas: habits/, calendar/, stats/, settings/, onboarding/)
+  components/     Piezas reutilizables de interfaz
+    Layout.tsx, ThemeToggle.tsx, ConfirmDialog.tsx, EmptyState.tsx, IconPicker.tsx, ColorPicker.tsx
+  habits/         Pantallas de gestión de hábitos (Etapa 2)
+    HabitsListPage.tsx    Buscar, filtrar, ordenar, y acciones (pausar/archivar/duplicar/eliminar/reactivar)
+    HabitFormPage.tsx     Crear y editar (formulario único, con validación)
+    HabitCard.tsx, icons.ts, colors.ts, formTypes.ts, validation.ts (+ validation.test.ts)
+  (a completar en próximas etapas: calendar/, stats/, settings/, onboarding/, un Panel principal en "/")
 public/
   icon.svg        Ícono base de la app (pendiente set completo de iconos PWA en Etapa 8)
 ```
@@ -55,6 +62,9 @@ public/
 - `registros` tiene un índice único compuesto `[habitoId+fecha]`: la base de datos misma impide duplicados, además de la lógica de "upsert" en `logsRepo`.
 - Un día "pendiente" (sin marcar) simplemente no tiene fila en `registros` — no se guardan filas vacías.
 - `eliminarHabito` sin opciones = borrado suave (oculta, conserva historial). `eliminarHabito(id, { borrarHistorial: true })` = borrado permanente e irreversible de hábito + registros.
+- El campo `estado` (activo/pausado/archivado) del hábito **no es editable desde el formulario**: se cambia únicamente desde los botones de acción de la lista de gestión (Pausar/Reanudar/Archivar/Reactivar), para evitar dos caminos distintos que lleven a estados inconsistentes.
+- `"/"` redirige temporalmente a `/habitos` (gestión). Cuando se construya el Panel principal en la Etapa 3, `"/"` pasará a mostrarlo.
+- Paleta de íconos y colores es una selección curada (no el catálogo completo de Lucide) para mantener el bundle liviano y la elección simple; ver `src/habits/icons.ts` y `colors.ts`.
 
 ## Reglas de trabajo
 
@@ -68,7 +78,7 @@ public/
 
 - [x] Etapa 0 — Estructura base, Git, PWA base, tema claro/oscuro/sistema
 - [x] Etapa 1 — Modelo de datos y almacenamiento local (18/18 pruebas automáticas pasando)
-- [ ] Etapa 2 — CRUD de hábitos
+- [x] Etapa 2 — CRUD de hábitos (29/29 pruebas automáticas pasando, probado en navegador)
 - [ ] Etapa 3 — Panel principal y registro diario
 - [ ] Etapa 4 — Calendario mensual
 - [ ] Etapa 5 — Estadísticas y gráficos
@@ -82,3 +92,4 @@ public/
 - Notificaciones push reales (requeriría backend).
 - Registro/login de usuario, pagos, funciones sociales, IA/chat, integraciones con wearables — explícitamente fuera de alcance por pedido del usuario.
 - Set completo de iconos PWA (varios tamaños PNG + maskable) — hoy usa un único SVG placeholder.
+- "Revisar historial" de un hábito desde la lista de gestión: se resuelve naturalmente cuando existan el Calendario (Etapa 4) y las Estadísticas (Etapa 5); no se agregó un botón propio en la Etapa 2 para evitar un enlace a una pantalla que todavía no existe.
