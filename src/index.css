@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply dark:bg-slate-950 dark:text-slate-100;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Foco visible y consistente para navegación por teclado */
+  :focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-brand-500;
+  }
+
+  button,
+  a {
+    @apply touch-manipulation;
+  }
+}
+
+@layer utilities {
+  /* Respeta la preferencia del sistema de reducir animaciones */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}

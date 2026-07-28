@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es-UY">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="description" content="Aplicación personal para registrar y seguir hábitos diarios." />
+    <title>Hábitos</title>
+    <script>
+      // Aplica el tema antes de pintar la página, para evitar un parpadeo
+      // del tema incorrecto al cargar (flash of wrong theme).
+      (function () {
+        try {
+          var stored = localStorage.getItem('habitos-tracker-theme') || 'system';
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var isDark = stored === 'dark' || (stored === 'system' && prefersDark);
+          document.documentElement.classList.toggle('dark', isDark);
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
