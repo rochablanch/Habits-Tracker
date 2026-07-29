@@ -420,7 +420,7 @@ export function HabitFormPage() {
           </div>
         </section>
 
-        <div className="sticky bottom-4 flex gap-2 rounded-xl bg-white/90 p-2 backdrop-blur dark:bg-slate-950/90">
+        <div className="sticky bottom-20 z-30 flex gap-2 rounded-xl bg-white/90 p-2 shadow-lg backdrop-blur dark:bg-slate-950/90">
           <Link
             to="/habitos"
             className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-300"

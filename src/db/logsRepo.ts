@@ -11,27 +11,62 @@ export interface DatosRegistro {
 /**
  * Crea o actualiza el registro de un hábito en una fecha (upsert). Nunca
  * genera un duplicado: si ya existe un registro para ese hábito y fecha, lo
- * actualiza en el momento.
+ * actualiza en el momento. Todo ocurre dentro de una única transacción para
+ * que llamadas simultáneas (ej. varios taps seguidos) no se pisen entre sí.
  */
 export async function registrarCumplimiento(
   habitoId: number,
   fecha: string,
   datos: DatosRegistro,
 ): Promise<number> {
-  const existente = await db.registros.where('[habitoId+fecha]').equals([habitoId, fecha]).first()
-  const ahora = new Date().toISOString()
+  return db.transaction('rw', db.registros, async () => {
+    const existente = await db.registros.where('[habitoId+fecha]').equals([habitoId, fecha]).first()
+    const ahora = new Date().toISOString()
 
-  if (existente) {
-    await db.registros.update(existente.id!, { ...datos, updatedAt: ahora })
-    return existente.id!
-  }
+    if (existente) {
+      await db.registros.update(existente.id, { ...datos, updatedAt: ahora })
+      return existente.id
+    }
 
-  return db.registros.add({
-    habitoId,
-    fecha,
-    ...datos,
-    createdAt: ahora,
-    updatedAt: ahora,
+    return db.registros.add({
+      habitoId,
+      fecha,
+      ...datos,
+      createdAt: ahora,
+      updatedAt: ahora,
+    })
+  })
+}
+
+/**
+ * Suma (o resta) una cantidad al registro del día, leyendo siempre el valor
+ * actual desde la base de datos (no desde el estado de la pantalla) para que
+ * taps rápidos y seguidos en +/- se acumulen correctamente. Si el resultado
+ * llega a 0, se quita el registro (vuelve a pendiente).
+ */
+export async function incrementarRegistro(habitoId: number, fecha: string, delta: number): Promise<void> {
+  await db.transaction('rw', db.registros, async () => {
+    const existente = await db.registros.where('[habitoId+fecha]').equals([habitoId, fecha]).first()
+    const nuevoValor = (existente?.valor ?? 0) + delta
+    const ahora = new Date().toISOString()
+
+    if (nuevoValor <= 0) {
+      if (existente) await db.registros.delete(existente.id)
+      return
+    }
+
+    if (existente) {
+      await db.registros.update(existente.id, { valor: nuevoValor, estado: 'completado', updatedAt: ahora })
+    } else {
+      await db.registros.add({
+        habitoId,
+        fecha,
+        estado: 'completado',
+        valor: nuevoValor,
+        createdAt: ahora,
+        updatedAt: ahora,
+      })
+    }
   })
 }
 
@@ -46,6 +81,11 @@ export async function obtenerRegistro(habitoId: number, fecha: string): Promise<
 
 export async function listarRegistrosPorFecha(fecha: string): Promise<RegistroDiario[]> {
   return db.registros.where('fecha').equals(fecha).toArray()
+}
+
+/** Registros de todos los hábitos dentro de un rango de fechas (ambos extremos incluidos). */
+export async function listarRegistrosEnRango(desde: string, hasta: string): Promise<RegistroDiario[]> {
+  return db.registros.where('fecha').between(desde, hasta, true, true).toArray()
 }
 
 export async function listarRegistrosPorHabito(

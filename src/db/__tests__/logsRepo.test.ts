@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { db } from '../db'
 import {
+  incrementarRegistro,
   listarRegistrosPorFecha,
   listarRegistrosPorHabito,
   obtenerRegistro,
@@ -60,5 +61,17 @@ describe('logsRepo', () => {
 
     const enRango = await listarRegistrosPorHabito(HABITO_ID, { desde: '2026-07-10', hasta: '2026-07-20' })
     expect(enRango.map((r) => r.fecha)).toEqual(['2026-07-15'])
+  })
+
+  it('incrementarRegistro acumula correctamente incluso con llamadas simultáneas (ej. taps rápidos)', async () => {
+    await Promise.all(Array.from({ length: 8 }, () => incrementarRegistro(HABITO_ID, '2026-07-28', 1)))
+    const registro = await obtenerRegistro(HABITO_ID, '2026-07-28')
+    expect(registro?.valor).toBe(8)
+  })
+
+  it('incrementarRegistro quita el registro cuando el valor baja a 0', async () => {
+    await incrementarRegistro(HABITO_ID, '2026-07-28', 1)
+    await incrementarRegistro(HABITO_ID, '2026-07-28', -1)
+    expect(await obtenerRegistro(HABITO_ID, '2026-07-28')).toBeUndefined()
   })
 })

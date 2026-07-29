@@ -1,6 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { listarCategorias } from './categoriesRepo'
 import { listarHabitos, obtenerHabito, type FiltroHabitos } from './habitsRepo'
+import { listarRegistrosEnRango, listarRegistrosPorHabito } from './logsRepo'
+import { obtenerConfiguracion } from './settingsRepo'
 
 export function useCategorias() {
   return useLiveQuery(() => listarCategorias(), [])
@@ -20,4 +22,16 @@ export function useHabito(id: number | undefined) {
     const habito = await obtenerHabito(id)
     return habito ?? null
   }, [id])
+}
+
+export function useHistorialHabito(habitoId: number | undefined) {
+  return useLiveQuery(() => (habitoId ? listarRegistrosPorHabito(habitoId) : []), [habitoId])
+}
+
+export function useRegistrosEnRango(desde: string, hasta: string) {
+  return useLiveQuery(() => listarRegistrosEnRango(desde, hasta), [desde, hasta])
+}
+
+export function useConfiguracion() {
+  return useLiveQuery(() => obtenerConfiguracion(), [])
 }
