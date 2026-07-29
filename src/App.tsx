@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { CalendarPage } from './calendar/CalendarPage'
 import { Layout } from './components/Layout'
 import { HabitFormPage } from './habits/HabitFormPage'
 import { HabitsListPage } from './habits/HabitsListPage'
@@ -10,6 +11,7 @@ function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<PanelPage />} />
+          <Route path="/calendario" element={<CalendarPage />} />
           <Route path="/habitos" element={<HabitsListPage />} />
           <Route path="/habitos/nuevo" element={<HabitFormPage />} />
           <Route path="/habitos/:id/editar" element={<HabitFormPage />} />

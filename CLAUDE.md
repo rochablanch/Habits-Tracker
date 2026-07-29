@@ -58,7 +58,11 @@ src/
     summary.ts (+ .test.ts)      Resumen de cumplimiento de los últimos N días
   panel/          Panel principal ("Hoy", ruta "/")
     PanelPage.tsx, motivationalQuotes.ts
-  (a completar en próximas etapas: calendar/, stats/, settings/, onboarding/)
+  calendar/       Calendario mensual (ruta "/calendario")
+    CalendarPage.tsx        Grilla del mes, navegación, leyenda, y detalle del día seleccionado
+    monthGrid.ts (+ .test.ts)      Fechas a mostrar en la grilla (incluye relleno de meses vecinos)
+    dayCellStatus.ts (+ .test.ts)  Color de cada celda: completo/parcial/sin registros/sin hábitos/futuro
+  (a completar en próximas etapas: stats/, settings/, onboarding/)
 public/
   icon.svg        Ícono base de la app (pendiente set completo de iconos PWA en Etapa 8)
 ```
@@ -76,6 +80,8 @@ public/
 - **Incrementar/decrementar contadores** usa `incrementarRegistro` (lee el valor actual desde la base de datos dentro de una transacción), no el valor en pantalla — así varios taps seguidos en +/- se acumulan bien y no se pisan entre sí. Bug real encontrado y corregido durante la Etapa 3.
 - **Resumen semanal** = últimos 7 días corridos (hoy y los 6 anteriores), no la semana calendario. Más simple de calcular y de entender; la alineación por semana calendario puede llegar en Estadísticas (Etapa 5) si hace falta.
 - La barra de navegación inferior es `fixed` con altura fija (`h-16`); cualquier barra de acciones flotante/`sticky` en el fondo de una pantalla debe dejarle espacio (`bottom-20` o más) para no quedar tapada y recibir clics que en realidad caen sobre la navegación.
+- **Calendario**: a diferencia del Panel principal (que solo muestra hábitos con estado "activo"), el Calendario considera *todos* los hábitos no eliminados (activos, pausados y archivados), porque un hábito pausado hoy pudo haber estado vigente en una fecha pasada y su historial sigue siendo válido para revisar/editar. Reutiliza `HabitTodayCard` (Etapa 3) pasándole la fecha elegida en vez de "hoy" — el mismo componente sirve para hoy y para cualquier día pasado, incluida la racha "como si fuera esa fecha".
+- El color de una celda del calendario no distingue "omitido" como categoría propia (se ve igual que "sin registros" con 0%); el detalle del día sí lo muestra. Alcanza para la vista mensual y evita una leyenda con demasiados colores.
 
 ## Reglas de trabajo
 
@@ -91,7 +97,7 @@ public/
 - [x] Etapa 1 — Modelo de datos y almacenamiento local (18/18 pruebas automáticas pasando)
 - [x] Etapa 2 — CRUD de hábitos (29/29 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 3 — Panel principal y registro diario (53/53 pruebas automáticas pasando, probado en navegador)
-- [ ] Etapa 4 — Calendario mensual
+- [x] Etapa 4 — Calendario mensual (66/66 pruebas automáticas pasando, probado en navegador)
 - [ ] Etapa 5 — Estadísticas y gráficos
 - [ ] Etapa 6 — Configuración, exportar/importar
 - [ ] Etapa 7 — Onboarding inicial

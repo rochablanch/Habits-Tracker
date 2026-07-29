@@ -17,6 +17,29 @@ function restarDias(fecha: string, cantidad: number): string {
   return toISODate(d)
 }
 
+export function indexarRegistrosPorHabitoYFecha(registros: RegistroDiario[]): Map<string, RegistroDiario> {
+  return new Map(registros.map((r) => [`${r.habitoId}|${r.fecha}`, r]))
+}
+
+/** Resumen de cumplimiento de un día puntual. `registrosPorClave` se arma una vez con `indexarRegistrosPorHabitoYFecha` para poder llamar esto muchas veces (ej. los ~35 días de un calendario) sin reconstruir el índice cada vez. */
+export function calcularResumenDia(
+  habitos: Habito[],
+  registrosPorClave: Map<string, RegistroDiario>,
+  fecha: string,
+): ResumenDia {
+  const habitosAplicables = habitos.filter((h) => aplicaEnFecha(h, fecha))
+  const logrados = habitosAplicables.filter((h) =>
+    seCumplioEnFecha(h, registrosPorClave.get(`${h.id}|${fecha}`)),
+  ).length
+
+  return {
+    fecha,
+    aplicables: habitosAplicables.length,
+    logrados,
+    porcentaje: habitosAplicables.length === 0 ? null : Math.round((logrados / habitosAplicables.length) * 100),
+  }
+}
+
 /** Resumen de los últimos `dias` (incluyendo hoy), para el pequeño resumen semanal del panel. */
 export function resumenUltimosDias(
   habitos: Habito[],
@@ -24,22 +47,11 @@ export function resumenUltimosDias(
   hoy: string,
   dias = 7,
 ): ResumenDia[] {
-  const registrosPorClave = new Map(registros.map((r) => [`${r.habitoId}|${r.fecha}`, r]))
+  const registrosPorClave = indexarRegistrosPorHabitoYFecha(registros)
   const resultado: ResumenDia[] = []
 
   for (let i = dias - 1; i >= 0; i--) {
-    const fecha = restarDias(hoy, i)
-    const habitosAplicables = habitos.filter((h) => aplicaEnFecha(h, fecha))
-    const logrados = habitosAplicables.filter((h) =>
-      seCumplioEnFecha(h, registrosPorClave.get(`${h.id}|${fecha}`)),
-    ).length
-
-    resultado.push({
-      fecha,
-      aplicables: habitosAplicables.length,
-      logrados,
-      porcentaje: habitosAplicables.length === 0 ? null : Math.round((logrados / habitosAplicables.length) * 100),
-    })
+    resultado.push(calcularResumenDia(habitos, registrosPorClave, restarDias(hoy, i)))
   }
 
   return resultado
