@@ -1,5 +1,5 @@
 import type { Habito, RegistroDiario } from '../db/types'
-import { toISODate } from '../utils/date'
+import { sumarDias } from '../utils/date'
 import { aplicaEnFecha, seCumplioEnFecha } from './dailyStatus'
 
 export interface ResumenDia {
@@ -8,13 +8,6 @@ export interface ResumenDia {
   logrados: number
   /** 0 a 100. null si ningún hábito aplicaba ese día (para no mostrar un 0% engañoso). */
   porcentaje: number | null
-}
-
-function restarDias(fecha: string, cantidad: number): string {
-  const [year, month, day] = fecha.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  d.setDate(d.getDate() - cantidad)
-  return toISODate(d)
 }
 
 export function indexarRegistrosPorHabitoYFecha(registros: RegistroDiario[]): Map<string, RegistroDiario> {
@@ -51,7 +44,7 @@ export function resumenUltimosDias(
   const resultado: ResumenDia[] = []
 
   for (let i = dias - 1; i >= 0; i--) {
-    resultado.push(calcularResumenDia(habitos, registrosPorClave, restarDias(hoy, i)))
+    resultado.push(calcularResumenDia(habitos, registrosPorClave, sumarDias(hoy, -i)))
   }
 
   return resultado

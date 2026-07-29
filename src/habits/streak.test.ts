@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Habito, RegistroDiario } from '../db/types'
-import { calcularRachaActual } from './streak'
+import { calcularRachaActual, calcularRachaMaxima } from './streak'
 
 const HOY = '2026-07-28' // martes
 
@@ -99,5 +99,61 @@ describe('calcularRachaActual — x veces por semana', () => {
       completado('2026-07-24'), // semana del 20: 3, llega a la meta
     ]
     expect(calcularRachaActual(h, registros, HOY)).toBe(1)
+  })
+})
+
+describe('calcularRachaMaxima — hábitos diarios', () => {
+  it('encuentra la racha más larga del historial, aunque no sea la actual', () => {
+    const h = habito({ fechaInicio: '2026-07-01' })
+    const registros = [
+      // racha de 4 días, ya cortada
+      completado('2026-07-01'),
+      completado('2026-07-02'),
+      completado('2026-07-03'),
+      completado('2026-07-04'),
+      // racha actual: solo 1 día
+      completado(HOY),
+    ]
+    expect(calcularRachaMaxima(h, registros, HOY)).toBe(4)
+    expect(calcularRachaActual(h, registros, HOY)).toBe(1)
+  })
+
+  it('sin registros, la racha máxima es 0', () => {
+    expect(calcularRachaMaxima(habito({ fechaInicio: '2026-07-01' }), [], HOY)).toBe(0)
+  })
+
+  it('respeta los días no aplicables igual que la racha actual', () => {
+    const h = habito({ frecuencia: 'dias_semana', diasSemana: [1, 3, 5], fechaInicio: '2026-07-01' })
+    const registros = [completado('2026-07-20'), completado('2026-07-22'), completado('2026-07-24')]
+    expect(calcularRachaMaxima(h, registros)).toBe(3)
+  })
+})
+
+describe('calcularRachaMaxima — x veces por semana', () => {
+  it('encuentra la racha de semanas más larga del historial', () => {
+    const h = habito({ frecuencia: 'x_veces_semana', vecesPorSemana: 3, fechaInicio: '2026-06-01' })
+    const registros = [
+      // dos semanas seguidas cumpliendo la meta (racha máxima = 2)
+      completado('2026-06-01'),
+      completado('2026-06-03'),
+      completado('2026-06-05'),
+      completado('2026-06-08'),
+      completado('2026-06-10'),
+      completado('2026-06-12'),
+      // semana suelta que no llega a la meta
+      completado('2026-06-22'),
+    ]
+    expect(calcularRachaMaxima(h, registros, HOY)).toBe(2)
+  })
+
+  it('no penaliza la semana actual incompleta', () => {
+    const h = habito({ frecuencia: 'x_veces_semana', vecesPorSemana: 3, fechaInicio: '2026-06-01' })
+    const registros = [
+      completado('2026-07-20'),
+      completado('2026-07-22'),
+      completado('2026-07-24'), // semana del 20: cumple la meta
+      completado('2026-07-27'), // semana actual: solo 1 hasta ahora
+    ]
+    expect(calcularRachaMaxima(h, registros, HOY)).toBe(1)
   })
 })

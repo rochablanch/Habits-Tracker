@@ -1,36 +1,13 @@
 import type { Habito, RegistroDiario } from '../db/types'
-import { toISODate, todayISO } from '../utils/date'
+import { sumarDias, todayISO } from '../utils/date'
 import { aplicaEnFecha, seCumplioEnFecha } from './dailyStatus'
 
-function fechaAnterior(fecha: string): string {
-  const [year, month, day] = fecha.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  d.setDate(d.getDate() - 1)
-  return toISODate(d)
-}
-
-function fechaSiguiente(fecha: string): string {
-  const [year, month, day] = fecha.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  d.setDate(d.getDate() + 1)
-  return toISODate(d)
-}
-
 /** Lunes de la semana ISO (semana empieza el lunes) a la que pertenece la fecha dada. */
-function lunesDeLaSemana(fecha: string): string {
+export function lunesDeLaSemana(fecha: string): string {
   const [year, month, day] = fecha.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  const diaSemana = d.getDay() // 0 = domingo
+  const diaSemana = new Date(year, month - 1, day).getDay() // 0 = domingo
   const offset = diaSemana === 0 ? 6 : diaSemana - 1
-  d.setDate(d.getDate() - offset)
-  return toISODate(d)
-}
-
-function semanaAnterior(lunes: string): string {
-  const [year, month, day] = lunes.split('-').map(Number)
-  const d = new Date(year, month - 1, day)
-  d.setDate(d.getDate() - 7)
-  return toISODate(d)
+  return sumarDias(fecha, -offset)
 }
 
 /**
@@ -44,28 +21,27 @@ export function calcularRachaActual(
   registros: RegistroDiario[],
   hoy: string = todayISO(),
 ): number {
-  const registrosPorFecha = new Map(registros.map((r) => [r.fecha, r]))
-
   if (habito.frecuencia === 'x_veces_semana') {
-    return rachaPorSemanas(habito, registros, hoy)
+    return rachaActualPorSemanas(habito, registros, hoy)
   }
 
+  const registrosPorFecha = new Map(registros.map((r) => [r.fecha, r]))
   let racha = 0
   let cursor = hoy
 
   // Si hoy es aplicable pero todavía no está logrado, no cuenta como "roto": empezamos desde ayer.
   if (aplicaEnFecha(habito, cursor) && !seCumplioEnFecha(habito, registrosPorFecha.get(cursor))) {
-    cursor = fechaAnterior(cursor)
+    cursor = sumarDias(cursor, -1)
   }
 
   while (cursor >= habito.fechaInicio) {
     if (!aplicaEnFecha(habito, cursor)) {
-      cursor = fechaAnterior(cursor)
+      cursor = sumarDias(cursor, -1)
       continue
     }
     if (seCumplioEnFecha(habito, registrosPorFecha.get(cursor))) {
       racha++
-      cursor = fechaAnterior(cursor)
+      cursor = sumarDias(cursor, -1)
     } else {
       break
     }
@@ -74,38 +50,103 @@ export function calcularRachaActual(
   return racha
 }
 
-function rachaPorSemanas(habito: Habito, registros: RegistroDiario[], hoy: string): number {
+function cumplidosEnSemana(
+  habito: Habito,
+  registrosPorFecha: Map<string, RegistroDiario>,
+  lunes: string,
+  limite: string,
+): number {
+  let cumplidos = 0
+  let dia = lunes
+  for (let i = 0; i < 7; i++) {
+    if (dia >= habito.fechaInicio && dia <= limite && seCumplioEnFecha(habito, registrosPorFecha.get(dia))) {
+      cumplidos++
+    }
+    dia = sumarDias(dia, 1)
+  }
+  return cumplidos
+}
+
+function rachaActualPorSemanas(habito: Habito, registros: RegistroDiario[], hoy: string): number {
   const meta = habito.vecesPorSemana ?? 1
   const registrosPorFecha = new Map(registros.map((r) => [r.fecha, r]))
-
-  function cumplidosEnSemana(lunes: string): number {
-    let cumplidos = 0
-    let dia = lunes
-    for (let i = 0; i < 7; i++) {
-      if (dia >= habito.fechaInicio && dia <= hoy && seCumplioEnFecha(habito, registrosPorFecha.get(dia))) {
-        cumplidos++
-      }
-      dia = fechaSiguiente(dia)
-    }
-    return cumplidos
-  }
 
   let racha = 0
   let semana = lunesDeLaSemana(hoy)
 
   // La semana actual (incompleta) no rompe la racha si todavía no llegó a la meta: se ignora y se empieza desde la anterior.
-  if (cumplidosEnSemana(semana) < meta) {
-    semana = semanaAnterior(semana)
+  if (cumplidosEnSemana(habito, registrosPorFecha, semana, hoy) < meta) {
+    semana = sumarDias(semana, -7)
   }
 
   while (semana >= lunesDeLaSemana(habito.fechaInicio)) {
-    if (cumplidosEnSemana(semana) >= meta) {
+    if (cumplidosEnSemana(habito, registrosPorFecha, semana, hoy) >= meta) {
       racha++
-      semana = semanaAnterior(semana)
+      semana = sumarDias(semana, -7)
     } else {
       break
     }
   }
 
   return racha
+}
+
+/**
+ * Racha máxima histórica: la racha más larga que el hábito tuvo alguna vez,
+ * no solo la actual. Recorre todo el historial desde su fecha de inicio.
+ */
+export function calcularRachaMaxima(
+  habito: Habito,
+  registros: RegistroDiario[],
+  hoy: string = todayISO(),
+): number {
+  if (habito.frecuencia === 'x_veces_semana') {
+    return rachaMaximaPorSemanas(habito, registros, hoy)
+  }
+
+  const registrosPorFecha = new Map(registros.map((r) => [r.fecha, r]))
+  let maxima = 0
+  let actual = 0
+  let cursor = habito.fechaInicio
+
+  while (cursor <= hoy) {
+    if (aplicaEnFecha(habito, cursor)) {
+      if (seCumplioEnFecha(habito, registrosPorFecha.get(cursor))) {
+        actual++
+        if (actual > maxima) maxima = actual
+      } else {
+        actual = 0
+      }
+    }
+    cursor = sumarDias(cursor, 1)
+  }
+
+  return maxima
+}
+
+function rachaMaximaPorSemanas(habito: Habito, registros: RegistroDiario[], hoy: string): number {
+  const meta = habito.vecesPorSemana ?? 1
+  const registrosPorFecha = new Map(registros.map((r) => [r.fecha, r]))
+
+  // La semana actual, si todavía está incompleta y no llegó a la meta, no cuenta como
+  // "fallada": se excluye del recorrido en vez de cortar una racha que sigue en curso.
+  const semanaActual = lunesDeLaSemana(hoy)
+  const semanaActualCumplida = cumplidosEnSemana(habito, registrosPorFecha, semanaActual, hoy) >= meta
+  const ultimaSemana = semanaActualCumplida ? semanaActual : sumarDias(semanaActual, -7)
+
+  let maxima = 0
+  let actual = 0
+  let semana = lunesDeLaSemana(habito.fechaInicio)
+
+  while (semana <= ultimaSemana) {
+    if (cumplidosEnSemana(habito, registrosPorFecha, semana, hoy) >= meta) {
+      actual++
+      if (actual > maxima) maxima = actual
+    } else {
+      actual = 0
+    }
+    semana = sumarDias(semana, 7)
+  }
+
+  return maxima
 }

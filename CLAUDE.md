@@ -43,7 +43,7 @@ src/
     settingsRepo.ts       Configuración general (no incluye tema, ver arriba)
     hooks.ts              Hooks de lectura reactiva (dexie-react-hooks/useLiveQuery)
     __tests__/            Pruebas automáticas de toda la capa de datos (Vitest)
-  utils/date.ts   Utilidades de fecha (formato YYYY-MM-DD como clave interna)
+  utils/date.ts   Utilidades de fecha (formato YYYY-MM-DD, aritmética de fechas compartida por todo el proyecto)
   test/setup.ts   Configuración de pruebas (fake-indexeddb, jest-dom)
   components/     Piezas reutilizables de interfaz
     Layout.tsx, ThemeToggle.tsx, ConfirmDialog.tsx, EmptyState.tsx, IconPicker.tsx, ColorPicker.tsx
@@ -61,8 +61,13 @@ src/
   calendar/       Calendario mensual (ruta "/calendario")
     CalendarPage.tsx        Grilla del mes, navegación, leyenda, y detalle del día seleccionado
     monthGrid.ts (+ .test.ts)      Fechas a mostrar en la grilla (incluye relleno de meses vecinos)
-    dayCellStatus.ts (+ .test.ts)  Color de cada celda: completo/parcial/sin registros/sin hábitos/futuro
-  (a completar en próximas etapas: stats/, settings/, onboarding/)
+    dayCellStatus.ts (+ .test.ts)  Color de cada celda (compartido con el mapa de calor de Estadísticas)
+  stats/          Estadísticas y gráficos (ruta "/estadisticas")
+    StatsPage.tsx           Selector de período + todas las secciones
+    period.ts (+ .test.ts)         Cálculo de rangos de fecha (7/30/90 días, año, personalizado) y período anterior
+    metrics.ts (+ .test.ts)        Cumplimiento total/por hábito/por categoría/por día de semana, evolución, días perfectos
+    PeriodSelector.tsx, HeatmapCalendar.tsx, EvolutionChart.tsx, HabitRankingList.tsx, CategoryBreakdown.tsx, WeekdayBreakdown.tsx
+  (a completar en próximas etapas: settings/, onboarding/)
 public/
   icon.svg        Ícono base de la app (pendiente set completo de iconos PWA en Etapa 8)
 ```
@@ -82,6 +87,11 @@ public/
 - La barra de navegación inferior es `fixed` con altura fija (`h-16`); cualquier barra de acciones flotante/`sticky` en el fondo de una pantalla debe dejarle espacio (`bottom-20` o más) para no quedar tapada y recibir clics que en realidad caen sobre la navegación.
 - **Calendario**: a diferencia del Panel principal (que solo muestra hábitos con estado "activo"), el Calendario considera *todos* los hábitos no eliminados (activos, pausados y archivados), porque un hábito pausado hoy pudo haber estado vigente en una fecha pasada y su historial sigue siendo válido para revisar/editar. Reutiliza `HabitTodayCard` (Etapa 3) pasándole la fecha elegida en vez de "hoy" — el mismo componente sirve para hoy y para cualquier día pasado, incluida la racha "como si fuera esa fecha".
 - El color de una celda del calendario no distingue "omitido" como categoría propia (se ve igual que "sin registros" con 0%); el detalle del día sí lo muestra. Alcanza para la vista mensual y evita una leyenda con demasiados colores.
+- **Estadísticas incluye hábitos eliminados** (`incluirEliminados: true`), a diferencia del Calendario (que ya incluye pausados/archivados pero no eliminados). Es la razón de ser del borrado suave: "conservar el historial en estadísticas" (ver Etapa 1). El Panel principal sigue siendo el único que se limita a hábitos `activo`.
+- **Umbral de datos suficientes = 7 días aplicables** (`UMBRAL_DATOS_MINIMOS` en `src/stats/metrics.ts`). Por debajo de eso, en vez de un porcentaje se muestra "Datos insuficientes", y conclusiones como "tu mejor día" o la comparación con el período anterior se ocultan en lugar de mostrar un número que podría ser engañoso.
+- **"Total de días completados"** se interpretó como días *perfectos* (100% de los hábitos aplicables ese día cumplidos), no como la suma de registros logrados — parecía la lectura más útil de ese número para alguien que no programa.
+- La aritmética de fechas (sumar días, contar días entre dos fechas, listar un rango) vive en `src/utils/date.ts` y la reutilizan `habits/summary.ts`, `habits/streak.ts`, `stats/*`; evitar reimplementarla de nuevo en un archivo nuevo.
+- **`StatsPage` se carga con `React.lazy`** (ver `App.tsx`): Recharts agrega ~390 KB al bundle, y solo hace falta en Estadísticas. Separarlo en su propio chunk evita que ese peso retrase la carga inicial del Panel/Calendario/Hábitos, que son las pantallas de uso diario. Cualquier otra librería pesada que solo use una pantalla debería seguir el mismo patrón.
 
 ## Reglas de trabajo
 
@@ -98,7 +108,7 @@ public/
 - [x] Etapa 2 — CRUD de hábitos (29/29 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 3 — Panel principal y registro diario (53/53 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 4 — Calendario mensual (66/66 pruebas automáticas pasando, probado en navegador)
-- [ ] Etapa 5 — Estadísticas y gráficos
+- [x] Etapa 5 — Estadísticas y gráficos (88/88 pruebas automáticas pasando, probado en navegador)
 - [ ] Etapa 6 — Configuración, exportar/importar
 - [ ] Etapa 7 — Onboarding inicial
 - [ ] Etapa 8 — Pulido, accesibilidad, PWA instalable, publicación online

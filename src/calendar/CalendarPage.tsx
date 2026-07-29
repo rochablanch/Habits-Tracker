@@ -7,26 +7,10 @@ import { aplicaEnFecha } from '../habits/dailyStatus'
 import { HabitTodayCard } from '../habits/HabitTodayCard'
 import { calcularResumenDia, indexarRegistrosPorHabitoYFecha } from '../habits/summary'
 import { todayISO } from '../utils/date'
-import { estadoCeldaDia, type EstadoCeldaDia } from './dayCellStatus'
+import { ESTILO_CELDA_DIA, LEYENDA_CELDA_DIA, estadoCeldaDia } from './dayCellStatus'
 import { anioMesDeFecha, diasDelMesVisible, sumarMeses } from './monthGrid'
 
 const NOMBRES_DIA = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
-
-const ESTILO_CELDA: Record<EstadoCeldaDia, string> = {
-  futuro: 'bg-transparent text-slate-300 dark:text-slate-700',
-  sin_habitos: 'bg-slate-50 text-slate-400 dark:bg-slate-900 dark:text-slate-600',
-  completo: 'bg-emerald-500 text-white',
-  parcial: 'bg-amber-400 text-white',
-  sin_registros: 'bg-rose-200 text-rose-800 dark:bg-rose-950 dark:text-rose-300',
-}
-
-const LEYENDA: { estado: EstadoCeldaDia; label: string }[] = [
-  { estado: 'completo', label: 'Completo' },
-  { estado: 'parcial', label: 'Parcial' },
-  { estado: 'sin_registros', label: 'Sin registros' },
-  { estado: 'sin_habitos', label: 'Sin hábitos' },
-  { estado: 'futuro', label: 'Futuro' },
-]
 
 export function CalendarPage() {
   const hoy = todayISO()
@@ -133,7 +117,7 @@ export function CalendarPage() {
               aria-pressed={esSeleccionado}
               aria-label={fecha}
               className={`flex aspect-square items-center justify-center rounded-lg text-sm transition-opacity ${
-                estado ? ESTILO_CELDA[estado] : 'bg-slate-50 dark:bg-slate-900'
+                estado ? ESTILO_CELDA_DIA[estado] : 'bg-slate-50 dark:bg-slate-900'
               } ${fueraDeMes ? 'opacity-40' : ''} ${esSeleccionado ? 'ring-2 ring-brand-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-950' : ''}`}
             >
               {dia}
@@ -143,9 +127,9 @@ export function CalendarPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-500 dark:text-slate-400">
-        {LEYENDA.map((item) => (
+        {LEYENDA_CELDA_DIA.map((item) => (
           <span key={item.estado} className="flex items-center gap-1.5">
-            <span className={`h-2.5 w-2.5 rounded-full ${ESTILO_CELDA[item.estado].split(' ')[0]}`} />
+            <span className={`h-2.5 w-2.5 rounded-full ${ESTILO_CELDA_DIA[item.estado].split(' ')[0]}`} />
             {item.label}
           </span>
         ))}

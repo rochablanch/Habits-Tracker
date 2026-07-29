@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarDays, ListChecks } from 'lucide-react'
+import { BarChart3, CalendarCheck, CalendarDays, ListChecks } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -33,6 +33,10 @@ export function Layout() {
           <NavLink to="/calendario" className={NAV_CLASE}>
             <CalendarDays className="h-5 w-5" aria-hidden="true" />
             Calendario
+          </NavLink>
+          <NavLink to="/estadisticas" className={NAV_CLASE}>
+            <BarChart3 className="h-5 w-5" aria-hidden="true" />
+            Progreso
           </NavLink>
           <NavLink to="/habitos" className={NAV_CLASE}>
             <ListChecks className="h-5 w-5" aria-hidden="true" />
