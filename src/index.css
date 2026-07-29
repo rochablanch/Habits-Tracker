@@ -35,4 +35,13 @@
       transition-duration: 0.001ms !important;
     }
   }
+
+  /* Mismo efecto, pero activado a mano desde Configuración → Animaciones */
+  .reducir-animaciones *,
+  .reducir-animaciones *::before,
+  .reducir-animaciones *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

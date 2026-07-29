@@ -1,7 +1,7 @@
 import { db } from './db'
 import type { Configuracion } from './types'
 
-const CONFIGURACION_POR_DEFECTO: Configuracion = {
+export const CONFIGURACION_POR_DEFECTO: Configuracion = {
   id: 1,
   primerDiaSemana: 1,
   formatoFecha: 'DD/MM/YYYY',

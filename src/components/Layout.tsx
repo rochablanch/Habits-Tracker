@@ -1,4 +1,4 @@
-import { BarChart3, CalendarCheck, CalendarDays, ListChecks } from 'lucide-react'
+import { BarChart3, CalendarCheck, CalendarDays, ListChecks, Settings } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -16,7 +16,16 @@ export function Layout() {
             <img src="/icon.svg" alt="" className="h-7 w-7 rounded-lg" />
             <span className="font-semibold text-slate-900 dark:text-slate-100">Hábitos</span>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <NavLink
+              to="/configuracion"
+              aria-label="Configuración"
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+            >
+              <Settings className="h-5 w-5" aria-hidden="true" />
+            </NavLink>
+          </div>
         </div>
       </header>
 

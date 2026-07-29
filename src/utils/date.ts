@@ -42,3 +42,11 @@ export function rangoDeFechas(desde: string, hasta: string): string[] {
   }
   return fechas
 }
+
+export type FormatoFecha = 'DD/MM/YYYY' | 'MM/DD/YYYY'
+
+/** Convierte "YYYY-MM-DD" al formato corto elegido en Configuración, ej. "28/07/2026". */
+export function formatearFechaCorta(fecha: string, formato: FormatoFecha): string {
+  const [anio, mes, dia] = fecha.split('-')
+  return formato === 'MM/DD/YYYY' ? `${mes}/${dia}/${anio}` : `${dia}/${mes}/${anio}`
+}

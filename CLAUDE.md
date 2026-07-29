@@ -25,7 +25,7 @@ Sin backend en la v1. Sin cuentas de usuario. Todo el estado vive en el disposit
 - **Eliminar ≠ borrar historial**: "Archivar" es reversible y oculta el hábito de la vista diaria. "Eliminar" pide confirmación explícita; por defecto conserva el historial en estadísticas, con una opción aparte (doble confirmación) para borrar todo.
 - **Tema (claro/oscuro/sistema)** se guarda en `localStorage` bajo la clave `habitos-tracker-theme`, separado del resto de la configuración (que vive en Dexie). Motivo: se necesita leerlo de forma síncrona antes de que React monte, para evitar un parpadeo del tema incorrecto (hay un script inline en `index.html` que hace esto).
 - **Estadísticas con pocos datos**: si un hábito tiene menos de ~7 días de historial, las métricas de tendencia muestran un aviso de "datos insuficientes" en vez de un número que aparente ser concluyente.
-- **Recordatorios v1**: son locales (comparando hora actual vs. hora preferida mientras la app está abierta/instalada), no notificaciones push reales, porque push requeriría un servidor. Documentado como mejora futura.
+- **Recordatorios v1**: son locales (`ReminderWatcher` revisa cada 20s si la hora actual coincide con la hora preferida de algún hábito activo todavía sin registrar hoy, mientras la app está abierta) y se muestran como un aviso descartable dentro de la app, no como notificación del sistema operativo — eso requeriría pedir permiso del navegador y, para funcionar con la app cerrada, un servidor push. Documentado como mejora futura.
 - **Sin sincronización entre dispositivos en v1**: cada navegador/dispositivo tiene su copia local. El respaldo/restauración manual (exportar/importar JSON) es el mecanismo de transferencia entre dispositivos por ahora.
 
 ## Estructura del proyecto
@@ -67,7 +67,12 @@ src/
     period.ts (+ .test.ts)         Cálculo de rangos de fecha (7/30/90 días, año, personalizado) y período anterior
     metrics.ts (+ .test.ts)        Cumplimiento total/por hábito/por categoría/por día de semana, evolución, días perfectos
     PeriodSelector.tsx, HeatmapCalendar.tsx, EvolutionChart.tsx, HabitRankingList.tsx, CategoryBreakdown.tsx, WeekdayBreakdown.tsx
-  (a completar en próximas etapas: settings/, onboarding/)
+  settings/       Configuración, respaldo y efectos globales (ruta "/configuracion")
+    SettingsPage.tsx        Tema, primer día de semana, formato de fecha, animaciones, frases, recordatorios, respaldo, borrado total
+    backup.ts (+ .test.ts)  Exportar/validar/restaurar un respaldo completo (JSON)
+    AnimationsEffect.tsx    Aplica la clase `.reducir-animaciones` a toda la app según la configuración (no renderiza nada)
+    ReminderWatcher.tsx     Recordatorios locales: revisa cada 20s y muestra un aviso descartable
+  (a completar en próximas etapas: onboarding/)
 public/
   icon.svg        Ícono base de la app (pendiente set completo de iconos PWA en Etapa 8)
 ```
@@ -92,6 +97,9 @@ public/
 - **"Total de días completados"** se interpretó como días *perfectos* (100% de los hábitos aplicables ese día cumplidos), no como la suma de registros logrados — parecía la lectura más útil de ese número para alguien que no programa.
 - La aritmética de fechas (sumar días, contar días entre dos fechas, listar un rango) vive en `src/utils/date.ts` y la reutilizan `habits/summary.ts`, `habits/streak.ts`, `stats/*`; evitar reimplementarla de nuevo en un archivo nuevo.
 - **`StatsPage` se carga con `React.lazy`** (ver `App.tsx`): Recharts agrega ~390 KB al bundle, y solo hace falta en Estadísticas. Separarlo en su propio chunk evita que ese peso retrase la carga inicial del Panel/Calendario/Hábitos, que son las pantallas de uso diario. Cualquier otra librería pesada que solo use una pantalla debería seguir el mismo patrón.
+- **Alcance de "primer día de la semana" y "formato de fecha"**: por diseño, la app usa fechas en palabras ("martes, 28 de julio") en casi toda la interfaz, no números — así que estas dos configuraciones tienen un efecto visible acotado pero real: "primer día de la semana" cambia el orden de columnas de la grilla del Calendario; "formato de fecha" se ve en la fecha numérica junto al título del día seleccionado en el Calendario. Deliberadamente **no** afectan el cálculo interno de rachas ni la agrupación semanal de Estadísticas (`lunesDeLaSemana` en `streak.ts`), que siempre usa lunes como convención interna — cambiar esa base habría sido un refactor de alto riesgo para las pruebas ya validadas, sin un beneficio claro para el usuario.
+- **Respaldo (exportar/importar)**: `src/settings/backup.ts` arma/valida/restaura un JSON versionado (`{ version, exportadoEn, habitos, registros, categorias, configuracion }`). Al importar, primero se descarga automáticamente una copia de seguridad de los datos actuales (por si el archivo importado resulta un error), y recién después se reemplaza todo. La validación es manual (sin librería externa) pero verifica la forma de cada registro antes de tocar la base de datos.
+- **"Borrar todos los datos"** vacía las 4 tablas y vuelve a sembrar las categorías predefinidas y la configuración por defecto (`db/resetRepo.ts`), para no dejar la app en un estado roto (sin categorías) después del borrado.
 
 ## Reglas de trabajo
 
@@ -109,7 +117,7 @@ public/
 - [x] Etapa 3 — Panel principal y registro diario (53/53 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 4 — Calendario mensual (66/66 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 5 — Estadísticas y gráficos (88/88 pruebas automáticas pasando, probado en navegador)
-- [ ] Etapa 6 — Configuración, exportar/importar
+- [x] Etapa 6 — Configuración, exportar/importar (95/95 pruebas automáticas pasando, probado en navegador)
 - [ ] Etapa 7 — Onboarding inicial
 - [ ] Etapa 8 — Pulido, accesibilidad, PWA instalable, publicación online
 

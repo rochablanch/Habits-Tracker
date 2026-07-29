@@ -2,22 +2,27 @@ import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../components/EmptyState'
-import { useHabitos, useRegistrosEnRango } from '../db/hooks'
+import { useConfiguracion, useHabitos, useRegistrosEnRango } from '../db/hooks'
 import { aplicaEnFecha } from '../habits/dailyStatus'
 import { HabitTodayCard } from '../habits/HabitTodayCard'
 import { calcularResumenDia, indexarRegistrosPorHabitoYFecha } from '../habits/summary'
-import { todayISO } from '../utils/date'
+import { formatearFechaCorta, todayISO } from '../utils/date'
 import { ESTILO_CELDA_DIA, LEYENDA_CELDA_DIA, estadoCeldaDia } from './dayCellStatus'
 import { anioMesDeFecha, diasDelMesVisible, sumarMeses } from './monthGrid'
 
-const NOMBRES_DIA = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+const NOMBRES_DIA_LUNES = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+const NOMBRES_DIA_DOMINGO = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
 export function CalendarPage() {
   const hoy = todayISO()
   const [anioMes, setAnioMes] = useState(anioMesDeFecha(hoy))
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy)
 
-  const dias = useMemo(() => diasDelMesVisible(anioMes, 1), [anioMes])
+  const configuracion = useConfiguracion()
+  const primerDiaSemana = configuracion?.primerDiaSemana ?? 1
+  const nombresDia = primerDiaSemana === 0 ? NOMBRES_DIA_DOMINGO : NOMBRES_DIA_LUNES
+
+  const dias = useMemo(() => diasDelMesVisible(anioMes, primerDiaSemana), [anioMes, primerDiaSemana])
   const habitos = useHabitos({})
   const registros = useRegistrosEnRango(dias[0], dias[dias.length - 1])
 
@@ -96,7 +101,7 @@ export function CalendarPage() {
       </div>
 
       <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-400">
-        {NOMBRES_DIA.map((n, i) => (
+        {nombresDia.map((n, i) => (
           <span key={i}>{n}</span>
         ))}
       </div>
@@ -136,8 +141,11 @@ export function CalendarPage() {
       </div>
 
       <div className="mt-6">
-        <h2 className="capitalize text-sm font-semibold text-slate-700 dark:text-slate-300">
-          {etiquetaFechaSeleccionada}
+        <h2 className="flex items-baseline gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
+          <span className="capitalize">{etiquetaFechaSeleccionada}</span>
+          <span className="font-normal text-slate-400">
+            {formatearFechaCorta(fechaSeleccionada, configuracion?.formatoFecha === 'MM/DD/YYYY' ? 'MM/DD/YYYY' : 'DD/MM/YYYY')}
+          </span>
         </h2>
 
         {habitosDelDiaSeleccionado.length === 0 ? (
