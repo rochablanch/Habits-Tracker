@@ -128,7 +128,8 @@ public/
 - [x] Etapa 5 — Estadísticas y gráficos (88/88 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 6 — Configuración, exportar/importar (95/95 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 7 — Onboarding inicial (99/99 pruebas automáticas pasando, probado en navegador)
-- [x] Etapa 8 — Pulido, accesibilidad, PWA instalable, pruebas finales (99/99 pruebas automáticas pasando, probado en navegador; publicación online pendiente de que el usuario cree las cuentas de GitHub/Vercel)
+- [x] Etapa 8 — Pulido, accesibilidad, PWA instalable, pruebas finales (99/99 pruebas automáticas pasando, probado en navegador)
+- [x] **Publicada online**: https://habits-tracker-wheat.vercel.app (GitHub + Vercel, se actualiza sola con cada `git push` a `main`). Instalada y probada en un Android real: PWA, crear/marcar hábitos, y exportar → importar de punta a punta, todo verificado en el dispositivo del usuario.
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
 
@@ -136,4 +137,5 @@ public/
 - Notificaciones push reales (requeriría backend).
 - Registro/login de usuario, pagos, funciones sociales, IA/chat, integraciones con wearables — explícitamente fuera de alcance por pedido del usuario.
 - "Revisar historial" de un hábito desde la lista de gestión: resuelto de forma natural al existir el Calendario (Etapa 4) y las Estadísticas (Etapa 5); no hay un botón dedicado "ver historial" en cada hábito de la lista de gestión, pero cualquier hábito se puede revisar desde esas dos pantallas.
-- Limitación conocida de las pruebas: la importación de un archivo (`Configuración → Importar datos`) no se pudo probar de punta a punta en el navegador automatizado porque no hay forma de simular la selección de un archivo real desde las herramientas de este entorno. La lógica de validación y restauración sí está cubierta por 5 pruebas automáticas (`backup.test.ts`), y la exportación (que genera el archivo) sí se verificó en el navegador.
+- **Bug real encontrado al publicar en un Android real** (no aparece en `npm run dev` ni en las pruebas automáticas): si la app queda abierta en más de un lugar a la vez en el mismo dispositivo (ej. la pestaña de Chrome usada para instalarla + el ícono de la PWA ya instalada), una operación de guardado puede quedar colgada en "Guardando…" y trabar el resto de la app en "Cargando…" — es un comportamiento conocido de IndexedDB cuando hay más de una conexión abierta al mismo tiempo. Se resuelve cerrando todas las instancias y dejando abierta una sola. No se encontró una causa a nivel de código (no se reprodujo en las pruebas automáticas ni en el navegador de escritorio); documentado acá por si vuelve a aparecer.
+- Exportar → importar se probó de punta a punta en un Android real (además de las 5 pruebas automáticas de `backup.test.ts`): funciona correctamente.
