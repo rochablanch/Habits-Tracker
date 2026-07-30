@@ -50,7 +50,7 @@ src/
   habits/         Pantallas de gestión de hábitos y lógica de cumplimiento diario
     HabitsListPage.tsx    Buscar, filtrar, ordenar, y acciones (pausar/archivar/duplicar/eliminar/reactivar)
     HabitFormPage.tsx     Crear y editar (formulario único, con validación)
-    HabitCard.tsx, icons.ts, colors.ts, formTypes.ts, validation.ts (+ validation.test.ts)
+    HabitCard.tsx, icons.ts (+ .test.ts), colors.ts, formTypes.ts, validation.ts (+ validation.test.ts)
     HabitTodayCard.tsx    Tarjeta de un hábito en el panel de hoy (marcar/desmarcar, contador, omitir, nota)
     WeeklySummary.tsx     Resumen visual de los últimos 7 días
     dailyStatus.ts (+ .test.ts)  Si un hábito aplica hoy, y si está pendiente/logrado/parcial/excedido/omitido
@@ -88,7 +88,7 @@ public/
 - Un día "pendiente" (sin marcar) simplemente no tiene fila en `registros` — no se guardan filas vacías.
 - `eliminarHabito` sin opciones = borrado suave (oculta, conserva historial). `eliminarHabito(id, { borrarHistorial: true })` = borrado permanente e irreversible de hábito + registros.
 - El campo `estado` (activo/pausado/archivado) del hábito **no es editable desde el formulario**: se cambia únicamente desde los botones de acción de la lista de gestión (Pausar/Reanudar/Archivar/Reactivar), para evitar dos caminos distintos que lleven a estados inconsistentes.
-- Paleta de íconos y colores es una selección curada (no el catálogo completo de Lucide) para mantener el bundle liviano y la elección simple; ver `src/habits/icons.ts` y `colors.ts`.
+- Paleta de íconos y colores es una selección curada (no el catálogo completo de Lucide) para mantener el bundle liviano y la elección simple; ver `src/habits/icons.ts` y `colors.ts`. Ampliada después de la v1 a ~94 íconos y 20 colores, con buscador en español (`buscarIconos`, por nombre de ícono o palabras clave tipo "agua", "dinero", "ejercicio"; sin distinguir mayúsculas ni acentos).
 - **Cumplimiento del día**: un hábito puede estar `pendiente` (sin registro), `logrado`, `parcial` (cantidad/tiempo por debajo de la meta), `excedido` (límite máximo superado) u `omitido`. Un hábito sí/no con `vecesPorDia > 1` se trata internamente como un contador (meta = vecesPorDia), igual que cantidad/tiempo/límite. Ver `src/habits/dailyStatus.ts`.
 - **Notas diarias solo sobre un registro existente**: para agregar una nota primero hay que marcar el hábito (completado, contador, u omitido). Evita marcar un día como "hecho" solo por escribir una nota.
 - **Incrementar/decrementar contadores** usa `incrementarRegistro` (lee el valor actual desde la base de datos dentro de una transacción), no el valor en pantalla — así varios taps seguidos en +/- se acumulan bien y no se pisan entre sí. Bug real encontrado y corregido durante la Etapa 3.
