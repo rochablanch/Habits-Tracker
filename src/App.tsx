@@ -4,6 +4,8 @@ import { CalendarPage } from './calendar/CalendarPage'
 import { Layout } from './components/Layout'
 import { HabitFormPage } from './habits/HabitFormPage'
 import { HabitsListPage } from './habits/HabitsListPage'
+import { OnboardingPage } from './onboarding/OnboardingPage'
+import { RequireOnboarding } from './onboarding/RequireOnboarding'
 import { PanelPage } from './panel/PanelPage'
 import { AnimationsEffect } from './settings/AnimationsEffect'
 import { ReminderWatcher } from './settings/ReminderWatcher'
@@ -22,7 +24,14 @@ function App() {
       <AnimationsEffect />
       <ReminderWatcher />
       <Routes>
-        <Route element={<Layout />}>
+        <Route path="/bienvenida" element={<OnboardingPage />} />
+        <Route
+          element={
+            <RequireOnboarding>
+              <Layout />
+            </RequireOnboarding>
+          }
+        >
           <Route path="/" element={<PanelPage />} />
           <Route path="/calendario" element={<CalendarPage />} />
           <Route

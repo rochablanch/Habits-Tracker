@@ -118,6 +118,7 @@ export async function restaurarRespaldo(datos: RespaldoDatos): Promise<void> {
     if (datos.categorias.length > 0) await db.categorias.bulkAdd(datos.categorias)
     if (datos.habitos.length > 0) await db.habitos.bulkAdd(datos.habitos)
     if (datos.registros.length > 0) await db.registros.bulkAdd(datos.registros)
-    await db.configuracion.add(datos.configuracion)
+    // Se combina con los valores por defecto por si el respaldo es de una versión anterior de la app.
+    await db.configuracion.add({ ...CONFIGURACION_POR_DEFECTO, ...datos.configuracion })
   })
 }

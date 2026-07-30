@@ -113,6 +113,7 @@ describe('restaurarRespaldo', () => {
         animaciones: false,
         frasesMotivacionales: false,
         recordatoriosActivos: false,
+        onboardingCompletado: true,
       },
     }
 

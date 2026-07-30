@@ -20,4 +20,20 @@ describe('settingsRepo', () => {
     expect(config.animaciones).toBe(false)
     expect(config.frasesMotivacionales).toBe(true)
   })
+
+  it('completa con valores por defecto los campos que falten en una configuración guardada antigua', async () => {
+    // simula una fila guardada antes de que existiera el campo "onboardingCompletado"
+    await db.configuracion.add({
+      id: 1,
+      primerDiaSemana: 0,
+      formatoFecha: 'DD/MM/YYYY',
+      animaciones: true,
+      frasesMotivacionales: true,
+      recordatoriosActivos: true,
+    } as never)
+
+    const config = await obtenerConfiguracion()
+    expect(config.onboardingCompletado).toBe(false)
+    expect(config.primerDiaSemana).toBe(0) // conserva lo que sí estaba guardado
+  })
 })

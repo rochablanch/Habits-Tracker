@@ -8,11 +8,14 @@ export const CONFIGURACION_POR_DEFECTO: Configuracion = {
   animaciones: true,
   frasesMotivacionales: true,
   recordatoriosActivos: true,
+  onboardingCompletado: false,
 }
 
 export async function obtenerConfiguracion(): Promise<Configuracion> {
   const config = await db.configuracion.get(1)
-  return config ?? CONFIGURACION_POR_DEFECTO
+  // Se combina con los valores por defecto para cubrir campos que se hayan agregado
+  // después de que el usuario ya tuviera una configuración guardada.
+  return { ...CONFIGURACION_POR_DEFECTO, ...config }
 }
 
 export async function actualizarConfiguracion(cambios: Partial<Omit<Configuracion, 'id'>>): Promise<void> {

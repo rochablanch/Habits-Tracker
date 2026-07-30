@@ -72,7 +72,10 @@ src/
     backup.ts (+ .test.ts)  Exportar/validar/restaurar un respaldo completo (JSON)
     AnimationsEffect.tsx    Aplica la clase `.reducir-animaciones` a toda la app según la configuración (no renderiza nada)
     ReminderWatcher.tsx     Recordatorios locales: revisa cada 20s y muestra un aviso descartable
-  (a completar en próximas etapas: onboarding/)
+  onboarding/     Introducción inicial (ruta "/bienvenida")
+    OnboardingPage.tsx      Bienvenida + elegir hábitos sugeridos (opcional) o crear el propio
+    RequireOnboarding.tsx   Manda a "/bienvenida" si `configuracion.onboardingCompletado` es false
+    suggestedHabits.ts (+ .test.ts)  Catálogo de hábitos sugeridos y su conversión a NuevoHabito
 public/
   icon.svg        Ícono base de la app (pendiente set completo de iconos PWA en Etapa 8)
 ```
@@ -100,6 +103,9 @@ public/
 - **Alcance de "primer día de la semana" y "formato de fecha"**: por diseño, la app usa fechas en palabras ("martes, 28 de julio") en casi toda la interfaz, no números — así que estas dos configuraciones tienen un efecto visible acotado pero real: "primer día de la semana" cambia el orden de columnas de la grilla del Calendario; "formato de fecha" se ve en la fecha numérica junto al título del día seleccionado en el Calendario. Deliberadamente **no** afectan el cálculo interno de rachas ni la agrupación semanal de Estadísticas (`lunesDeLaSemana` en `streak.ts`), que siempre usa lunes como convención interna — cambiar esa base habría sido un refactor de alto riesgo para las pruebas ya validadas, sin un beneficio claro para el usuario.
 - **Respaldo (exportar/importar)**: `src/settings/backup.ts` arma/valida/restaura un JSON versionado (`{ version, exportadoEn, habitos, registros, categorias, configuracion }`). Al importar, primero se descarga automáticamente una copia de seguridad de los datos actuales (por si el archivo importado resulta un error), y recién después se reemplaza todo. La validación es manual (sin librería externa) pero verifica la forma de cada registro antes de tocar la base de datos.
 - **"Borrar todos los datos"** vacía las 4 tablas y vuelve a sembrar las categorías predefinidas y la configuración por defecto (`db/resetRepo.ts`), para no dejar la app en un estado roto (sin categorías) después del borrado.
+- **Onboarding**: se muestra según `configuracion.onboardingCompletado` (no según si hay 0 hábitos), para no reaparecer si el usuario borra todos sus hábitos más adelante. `obtenerConfiguracion()` combina lo guardado con los valores por defecto (`{ ...CONFIGURACION_POR_DEFECTO, ...config }`), así que si se agrega un campo nuevo a `Configuracion` en el futuro, las configuraciones guardadas antes de ese cambio no se rompen ni faltan datos — aplica el mismo criterio al restaurar un respaldo viejo en `backup.ts`.
+- Los hábitos sugeridos del onboarding **no se crean solos**: se listan con checkbox y recién se guardan si el usuario elige alguno y confirma. Una prueba automática (`suggestedHabits.test.ts`) verifica que cada ícono y categoría sugeridos existan de verdad en los catálogos reales, para detectar un nombre mal escrito antes de que llegue a producción.
+- **Bug de contraste encontrado en la Etapa 7** (y corregido para toda la app): la paleta `brand` en `tailwind.config.js` no tenía el tono `950`, así que todo lo que usaba `dark:bg-brand-950` (varias selecciones marcadas en formularios) caía silenciosamente al `bg-brand-50` claro en tema oscuro — texto claro sobre fondo claro, casi ilegible. Estaba así desde la Etapa 2 sin haberlo notado visualmente. Se agregó el tono faltante (`950: '#1e1b4b'`) al config, que corrige los ~8 lugares afectados de una sola vez. Lección: los pasos de "probar en el navegador" deben incluir mirar los estados *seleccionados/activos* de los controles, no solo el estado inicial.
 
 ## Reglas de trabajo
 
@@ -118,7 +124,7 @@ public/
 - [x] Etapa 4 — Calendario mensual (66/66 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 5 — Estadísticas y gráficos (88/88 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 6 — Configuración, exportar/importar (95/95 pruebas automáticas pasando, probado en navegador)
-- [ ] Etapa 7 — Onboarding inicial
+- [x] Etapa 7 — Onboarding inicial (99/99 pruebas automáticas pasando, probado en navegador)
 - [ ] Etapa 8 — Pulido, accesibilidad, PWA instalable, publicación online
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
