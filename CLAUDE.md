@@ -77,7 +77,8 @@ src/
     RequireOnboarding.tsx   Manda a "/bienvenida" si `configuracion.onboardingCompletado` es false
     suggestedHabits.ts (+ .test.ts)  Catálogo de hábitos sugeridos y su conversión a NuevoHabito
 public/
-  icon.svg        Ícono base de la app (pendiente set completo de iconos PWA en Etapa 8)
+  icon.svg              Ícono base (favicon, y fuente para generar el resto)
+  icon-192.png, icon-512.png, apple-touch-icon.png   Iconos PWA generados desde icon.svg (ver nota abajo)
 ```
 
 ### Notas del modelo de datos
@@ -106,6 +107,7 @@ public/
 - **Onboarding**: se muestra según `configuracion.onboardingCompletado` (no según si hay 0 hábitos), para no reaparecer si el usuario borra todos sus hábitos más adelante. `obtenerConfiguracion()` combina lo guardado con los valores por defecto (`{ ...CONFIGURACION_POR_DEFECTO, ...config }`), así que si se agrega un campo nuevo a `Configuracion` en el futuro, las configuraciones guardadas antes de ese cambio no se rompen ni faltan datos — aplica el mismo criterio al restaurar un respaldo viejo en `backup.ts`.
 - Los hábitos sugeridos del onboarding **no se crean solos**: se listan con checkbox y recién se guardan si el usuario elige alguno y confirma. Una prueba automática (`suggestedHabits.test.ts`) verifica que cada ícono y categoría sugeridos existan de verdad en los catálogos reales, para detectar un nombre mal escrito antes de que llegue a producción.
 - **Bug de contraste encontrado en la Etapa 7** (y corregido para toda la app): la paleta `brand` en `tailwind.config.js` no tenía el tono `950`, así que todo lo que usaba `dark:bg-brand-950` (varias selecciones marcadas en formularios) caía silenciosamente al `bg-brand-50` claro en tema oscuro — texto claro sobre fondo claro, casi ilegible. Estaba así desde la Etapa 2 sin haberlo notado visualmente. Se agregó el tono faltante (`950: '#1e1b4b'`) al config, que corrige los ~8 lugares afectados de una sola vez. Lección: los pasos de "probar en el navegador" deben incluir mirar los estados *seleccionados/activos* de los controles, no solo el estado inicial.
+- **Iconos PWA** (`icon-192.png`, `icon-512.png`, `apple-touch-icon.png`) se generaron una sola vez, en la Etapa 8, rasterizando `public/icon.svg` con la librería `sharp` (instalada temporalmente con `npm install --no-save sharp`, usada, y desinstalada — no queda como dependencia del proyecto). El diseño del ícono (cuadrado redondeado + tilde, sin texto pegado a los bordes) ya cumple la "zona segura" que piden los íconos *maskable*, así que las mismas imágenes se usan para los dos propósitos (`any` y `maskable`) en el manifest. Si se cambia el ícono en el futuro, hay que repetir este proceso para regenerar los PNG — no se actualizan solos a partir del SVG.
 
 ## Reglas de trabajo
 
@@ -125,12 +127,12 @@ public/
 - [x] Etapa 5 — Estadísticas y gráficos (88/88 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 6 — Configuración, exportar/importar (95/95 pruebas automáticas pasando, probado en navegador)
 - [x] Etapa 7 — Onboarding inicial (99/99 pruebas automáticas pasando, probado en navegador)
-- [ ] Etapa 8 — Pulido, accesibilidad, PWA instalable, publicación online
+- [x] Etapa 8 — Pulido, accesibilidad, PWA instalable, pruebas finales (99/99 pruebas automáticas pasando, probado en navegador; publicación online pendiente de que el usuario cree las cuentas de GitHub/Vercel)
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
 
 - Sincronización entre dispositivos (requeriría backend + autenticación).
 - Notificaciones push reales (requeriría backend).
 - Registro/login de usuario, pagos, funciones sociales, IA/chat, integraciones con wearables — explícitamente fuera de alcance por pedido del usuario.
-- Set completo de iconos PWA (varios tamaños PNG + maskable) — hoy usa un único SVG placeholder.
-- "Revisar historial" de un hábito desde la lista de gestión: se resuelve naturalmente cuando existan el Calendario (Etapa 4) y las Estadísticas (Etapa 5); no se agregó un botón propio en la Etapa 2 para evitar un enlace a una pantalla que todavía no existe.
+- "Revisar historial" de un hábito desde la lista de gestión: resuelto de forma natural al existir el Calendario (Etapa 4) y las Estadísticas (Etapa 5); no hay un botón dedicado "ver historial" en cada hábito de la lista de gestión, pero cualquier hábito se puede revisar desde esas dos pantallas.
+- Limitación conocida de las pruebas: la importación de un archivo (`Configuración → Importar datos`) no se pudo probar de punta a punta en el navegador automatizado porque no hay forma de simular la selección de un archivo real desde las herramientas de este entorno. La lógica de validación y restauración sí está cubierta por 5 pruebas automáticas (`backup.test.ts`), y la exportación (que genera el archivo) sí se verificó en el navegador.
