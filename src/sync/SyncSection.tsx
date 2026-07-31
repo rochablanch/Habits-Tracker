@@ -1,8 +1,22 @@
+import { AlertCircle, RefreshCw } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useAuth } from './AuthContext'
+import { useSync } from './SyncContext'
+
+function formatearUltimaSync(fecha: Date | null): string {
+  if (!fecha) return 'Todavía no sincronizó en este dispositivo.'
+  const segundos = Math.round((Date.now() - fecha.getTime()) / 1000)
+  if (segundos < 10) return 'Sincronizado recién.'
+  if (segundos < 60) return `Sincronizado hace ${segundos} segundos.`
+  const minutos = Math.round(segundos / 60)
+  if (minutos < 60) return `Sincronizado hace ${minutos} minuto${minutos === 1 ? '' : 's'}.`
+  const horas = Math.round(minutos / 60)
+  return `Sincronizado hace ${horas} hora${horas === 1 ? '' : 's'}.`
+}
 
 export function SyncSection() {
   const { session, cargando, enviarLinkMagico, cerrarSesion } = useAuth()
+  const { sincronizando, ultimaSincronizacion, error: errorSync, sincronizarAhora } = useSync()
   const [email, setEmail] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
@@ -34,13 +48,35 @@ export function SyncSection() {
           Sesión iniciada como{' '}
           <strong className="text-slate-800 dark:text-slate-200">{session.user.email}</strong>.
         </p>
-        <button
-          type="button"
-          onClick={() => void cerrarSesion()}
-          className="mt-3 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
-          Cerrar sesión
-        </button>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          {sincronizando ? 'Sincronizando…' : formatearUltimaSync(ultimaSincronizacion)}
+        </p>
+
+        {errorSync && (
+          <p className="mt-2 flex items-start gap-1.5 text-sm text-red-600 dark:text-red-400">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            {errorSync}
+          </p>
+        )}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void sincronizarAhora()}
+            disabled={sincronizando}
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            <RefreshCw className={`h-4 w-4 ${sincronizando ? 'animate-spin' : ''}`} aria-hidden="true" />
+            Sincronizar ahora
+          </button>
+          <button
+            type="button"
+            onClick={() => void cerrarSesion()}
+            className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
     )
   }

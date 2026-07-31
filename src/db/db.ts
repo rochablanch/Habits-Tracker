@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Categoria, Configuracion, Habito, RegistroDiario } from './types'
+import type { Categoria, Configuracion, Eliminacion, Habito, RegistroDiario } from './types'
 import { CATEGORIAS_PREDEFINIDAS } from './defaultCategories'
 
 export class HabitosDB extends Dexie {
@@ -7,6 +7,7 @@ export class HabitosDB extends Dexie {
   registros!: EntityTable<RegistroDiario, 'id'>
   categorias!: EntityTable<Categoria, 'id'>
   configuracion!: EntityTable<Configuracion, 'id'>
+  eliminaciones!: EntityTable<Eliminacion, 'id'>
 
   constructor(name = 'habitos-tracker') {
     super(name)
@@ -46,6 +47,16 @@ export class HabitosDB extends Dexie {
             if (!c.uuid) c.uuid = crypto.randomUUID()
           })
       })
+
+    // v3: tabla local de "para borrar en el servidor" (no existía antes de tener sincronización).
+    // No hace falta migrar datos: es una tabla nueva, vacía, para todos los que ya tenían la app.
+    this.version(3).stores({
+      habitos: '++id, uuid, categoriaId, estado, eliminado',
+      registros: '++id, uuid, habitoId, fecha, &[habitoId+fecha]',
+      categorias: '++id, uuid, nombre',
+      configuracion: 'id',
+      eliminaciones: '++id, uuid, tabla',
+    })
 
     this.on('populate', () => {
       this.categorias.bulkAdd(CATEGORIAS_PREDEFINIDAS)

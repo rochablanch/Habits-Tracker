@@ -4,7 +4,7 @@ import { actualizarCategoria, crearCategoria, eliminarCategoria, listarCategoria
 import { crearHabito, obtenerHabito, type NuevoHabito } from '../habitsRepo'
 
 afterEach(async () => {
-  await Promise.all([db.categorias.clear(), db.habitos.clear()])
+  await Promise.all([db.categorias.clear(), db.habitos.clear(), db.eliminaciones.clear()])
 })
 
 function habitoDeEjemplo(categoriaId: number | null): NuevoHabito {
@@ -46,5 +46,16 @@ describe('categoriesRepo', () => {
 
     expect((await obtenerHabito(habitoId))?.categoriaId).toBeNull()
     expect((await listarCategorias()).find((c) => c.id === categoriaId)).toBeUndefined()
+  })
+
+  it('al eliminar una categoría deja constancia (para sincronizar) de la categoría borrada', async () => {
+    const categoriaId = await crearCategoria({ nombre: 'Mascotas', color: '#f59e0b', icono: 'Dog' })
+    const categoria = (await listarCategorias()).find((c) => c.id === categoriaId)!
+
+    await eliminarCategoria(categoriaId)
+
+    const eliminaciones = await db.eliminaciones.toArray()
+    expect(eliminaciones).toHaveLength(1)
+    expect(eliminaciones[0]).toMatchObject({ uuid: categoria.uuid, tabla: 'categorias' })
   })
 })

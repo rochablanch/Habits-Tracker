@@ -11,10 +11,10 @@ import {
   reactivarHabito,
   type NuevoHabito,
 } from '../habitsRepo'
-import { registrarCumplimiento } from '../logsRepo'
+import { obtenerRegistro, registrarCumplimiento } from '../logsRepo'
 
 afterEach(async () => {
-  await Promise.all([db.habitos.clear(), db.registros.clear()])
+  await Promise.all([db.habitos.clear(), db.registros.clear(), db.eliminaciones.clear()])
 })
 
 function habitoDeEjemplo(datos: Partial<NuevoHabito> = {}): NuevoHabito {
@@ -97,5 +97,25 @@ describe('habitsRepo', () => {
 
     expect(await obtenerHabito(id)).toBeUndefined()
     expect(await db.registros.where('habitoId').equals(id).count()).toBe(0)
+  })
+
+  it('eliminar con borrarHistorial=true deja constancia (para sincronizar) del hábito y sus registros borrados', async () => {
+    const habito = await obtenerHabito(await crearHabito(habitoDeEjemplo()))
+    const idHabito = habito!.id
+    await registrarCumplimiento(idHabito, '2026-07-28', { estado: 'completado' })
+    const registro = await obtenerRegistro(idHabito, '2026-07-28')
+
+    await eliminarHabito(idHabito, { borrarHistorial: true })
+
+    const eliminaciones = await db.eliminaciones.toArray()
+    expect(eliminaciones.map((e) => e.uuid)).toEqual(expect.arrayContaining([habito!.uuid, registro!.uuid]))
+    expect(eliminaciones.find((e) => e.uuid === habito!.uuid)?.tabla).toBe('habitos')
+    expect(eliminaciones.find((e) => e.uuid === registro!.uuid)?.tabla).toBe('registros')
+  })
+
+  it('eliminar (borrado suave) no deja constancia para sincronizar: la fila local sigue existiendo', async () => {
+    const id = await crearHabito(habitoDeEjemplo())
+    await eliminarHabito(id)
+    expect(await db.eliminaciones.count()).toBe(0)
   })
 })

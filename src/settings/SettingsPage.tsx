@@ -17,6 +17,7 @@ import { useConfiguracion } from '../db/hooks'
 import { eliminarTodosLosDatos } from '../db/resetRepo'
 import { actualizarConfiguracion } from '../db/settingsRepo'
 import type { Configuracion } from '../db/types'
+import { useAuth } from '../sync/AuthContext'
 import { SyncSection } from '../sync/SyncSection'
 import { useTheme, type ThemePreference } from '../theme/ThemeContext'
 import {
@@ -75,6 +76,7 @@ function Interruptor({
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme()
+  const { session } = useAuth()
   const configuracion = useConfiguracion()
   const inputArchivoRef = useRef<HTMLInputElement>(null)
 
@@ -361,6 +363,12 @@ export function SettingsPage() {
               Esto <strong>reemplaza todos tus datos actuales</strong>. Antes de continuar se va a descargar
               automáticamente una copia de seguridad de lo que tenés ahora, por las dudas.
             </p>
+            {session && (
+              <p className="mt-2 text-amber-700 dark:text-amber-400">
+                Tenés la sincronización activa: los datos que reemplazás acá pueden no borrarse en tus otros
+                dispositivos hasta que también importes ahí, o cierres sesión antes de importar.
+              </p>
+            )}
           </>
         )}
       </ConfirmDialog>

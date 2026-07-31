@@ -1,4 +1,5 @@
 import { db } from './db'
+import { registrarEliminacion } from './tombstones'
 import type { EstadoRegistro, RegistroDiario } from './types'
 
 export interface DatosRegistro {
@@ -46,13 +47,16 @@ export async function registrarCumplimiento(
  * llega a 0, se quita el registro (vuelve a pendiente).
  */
 export async function incrementarRegistro(habitoId: number, fecha: string, delta: number): Promise<void> {
-  await db.transaction('rw', db.registros, async () => {
+  await db.transaction('rw', db.registros, db.eliminaciones, async () => {
     const existente = await db.registros.where('[habitoId+fecha]').equals([habitoId, fecha]).first()
     const nuevoValor = (existente?.valor ?? 0) + delta
     const ahora = new Date().toISOString()
 
     if (nuevoValor <= 0) {
-      if (existente) await db.registros.delete(existente.id)
+      if (existente) {
+        await db.registros.delete(existente.id)
+        await registrarEliminacion(existente.uuid, 'registros')
+      }
       return
     }
 
@@ -74,7 +78,12 @@ export async function incrementarRegistro(habitoId: number, fecha: string, delta
 
 /** "Desmarcar": vuelve el día a pendiente, quitando cualquier registro guardado. */
 export async function quitarRegistro(habitoId: number, fecha: string): Promise<void> {
-  await db.registros.where('[habitoId+fecha]').equals([habitoId, fecha]).delete()
+  await db.transaction('rw', db.registros, db.eliminaciones, async () => {
+    const existente = await db.registros.where('[habitoId+fecha]').equals([habitoId, fecha]).first()
+    if (!existente) return
+    await db.registros.delete(existente.id)
+    await registrarEliminacion(existente.uuid, 'registros')
+  })
 }
 
 export async function obtenerRegistro(habitoId: number, fecha: string): Promise<RegistroDiario | undefined> {

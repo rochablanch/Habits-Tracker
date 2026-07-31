@@ -81,6 +81,21 @@ export interface Categoria {
   predefinida: boolean
 }
 
+/** Tablas cuyas filas se sincronizan con Supabase. */
+export type TablaSincronizable = 'habitos' | 'registros' | 'categorias'
+
+/**
+ * Registro de que una fila se borró permanentemente en este dispositivo, para
+ * poder avisarle al servidor (y de ahí a los demás dispositivos) que también
+ * la borren. Solo importa si hay sincronización activa.
+ */
+export interface Eliminacion {
+  id: number
+  uuid: string
+  tabla: TablaSincronizable
+  eliminadoEn: string // ISO datetime
+}
+
 export interface Configuracion {
   id: 1
   primerDiaSemana: 0 | 1 // 0 = domingo, 1 = lunes

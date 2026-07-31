@@ -13,7 +13,7 @@ const HABITO_ID = 1
 const OTRO_HABITO_ID = 2
 
 afterEach(async () => {
-  await db.registros.clear()
+  await Promise.all([db.registros.clear(), db.eliminaciones.clear()])
 })
 
 describe('logsRepo', () => {
@@ -45,6 +45,22 @@ describe('logsRepo', () => {
     expect(await obtenerRegistro(HABITO_ID, '2026-07-28')).toBeUndefined()
   })
 
+  it('desmarcar deja constancia (para sincronizar) del registro borrado', async () => {
+    await registrarCumplimiento(HABITO_ID, '2026-07-28', { estado: 'completado' })
+    const registro = await obtenerRegistro(HABITO_ID, '2026-07-28')
+
+    await quitarRegistro(HABITO_ID, '2026-07-28')
+
+    const eliminaciones = await db.eliminaciones.toArray()
+    expect(eliminaciones).toHaveLength(1)
+    expect(eliminaciones[0]).toMatchObject({ uuid: registro!.uuid, tabla: 'registros' })
+  })
+
+  it('desmarcar un día sin registro no hace nada (y no deja constancia falsa)', async () => {
+    await quitarRegistro(HABITO_ID, '2026-07-28')
+    expect(await db.eliminaciones.count()).toBe(0)
+  })
+
   it('permite consultar todos los registros de una fecha, sin mezclar hábitos', async () => {
     await registrarCumplimiento(HABITO_ID, '2026-07-28', { estado: 'completado' })
     await registrarCumplimiento(OTRO_HABITO_ID, '2026-07-28', { estado: 'omitido' })
@@ -73,5 +89,16 @@ describe('logsRepo', () => {
     await incrementarRegistro(HABITO_ID, '2026-07-28', 1)
     await incrementarRegistro(HABITO_ID, '2026-07-28', -1)
     expect(await obtenerRegistro(HABITO_ID, '2026-07-28')).toBeUndefined()
+  })
+
+  it('incrementarRegistro deja constancia (para sincronizar) al bajar a 0', async () => {
+    await incrementarRegistro(HABITO_ID, '2026-07-28', 1)
+    const registro = await obtenerRegistro(HABITO_ID, '2026-07-28')
+
+    await incrementarRegistro(HABITO_ID, '2026-07-28', -1)
+
+    const eliminaciones = await db.eliminaciones.toArray()
+    expect(eliminaciones).toHaveLength(1)
+    expect(eliminaciones[0]).toMatchObject({ uuid: registro!.uuid, tabla: 'registros' })
   })
 })

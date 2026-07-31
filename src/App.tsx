@@ -12,6 +12,7 @@ import { CategoriesPage } from './settings/CategoriesPage'
 import { ReminderWatcher } from './settings/ReminderWatcher'
 import { SettingsPage } from './settings/SettingsPage'
 import { AuthProvider } from './sync/AuthContext'
+import { SyncProvider } from './sync/SyncContext'
 
 // Se carga aparte (code splitting): trae Recharts, una librería pesada que solo hace falta acá.
 const StatsPage = lazy(() => import('./stats/StatsPage').then((m) => ({ default: m.StatsPage })))
@@ -23,36 +24,38 @@ function CargandoPagina() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AnimationsEffect />
-        <ReminderWatcher />
-        <Routes>
-          <Route path="/bienvenida" element={<OnboardingPage />} />
-          <Route
-            element={
-              <RequireOnboarding>
-                <Layout />
-              </RequireOnboarding>
-            }
-          >
-            <Route path="/" element={<PanelPage />} />
-            <Route path="/calendario" element={<CalendarPage />} />
+      <SyncProvider>
+        <BrowserRouter>
+          <AnimationsEffect />
+          <ReminderWatcher />
+          <Routes>
+            <Route path="/bienvenida" element={<OnboardingPage />} />
             <Route
-              path="/estadisticas"
               element={
-                <Suspense fallback={<CargandoPagina />}>
-                  <StatsPage />
-                </Suspense>
+                <RequireOnboarding>
+                  <Layout />
+                </RequireOnboarding>
               }
-            />
-            <Route path="/habitos" element={<HabitsListPage />} />
-            <Route path="/habitos/nuevo" element={<HabitFormPage />} />
-            <Route path="/habitos/:id/editar" element={<HabitFormPage />} />
-            <Route path="/configuracion" element={<SettingsPage />} />
-            <Route path="/configuracion/categorias" element={<CategoriesPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+            >
+              <Route path="/" element={<PanelPage />} />
+              <Route path="/calendario" element={<CalendarPage />} />
+              <Route
+                path="/estadisticas"
+                element={
+                  <Suspense fallback={<CargandoPagina />}>
+                    <StatsPage />
+                  </Suspense>
+                }
+              />
+              <Route path="/habitos" element={<HabitsListPage />} />
+              <Route path="/habitos/nuevo" element={<HabitFormPage />} />
+              <Route path="/habitos/:id/editar" element={<HabitFormPage />} />
+              <Route path="/configuracion" element={<SettingsPage />} />
+              <Route path="/configuracion/categorias" element={<CategoriesPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </SyncProvider>
     </AuthProvider>
   )
 }

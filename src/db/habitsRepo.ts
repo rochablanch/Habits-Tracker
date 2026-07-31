@@ -1,4 +1,5 @@
 import { db } from './db'
+import { registrarEliminacion } from './tombstones'
 import type { Habito } from './types'
 
 export type NuevoHabito = Omit<Habito, 'id' | 'uuid' | 'createdAt' | 'updatedAt' | 'eliminado'>
@@ -71,9 +72,13 @@ export async function duplicarHabito(id: number): Promise<number> {
  */
 export async function eliminarHabito(id: number, opciones: { borrarHistorial?: boolean } = {}): Promise<void> {
   if (opciones.borrarHistorial) {
-    await db.transaction('rw', db.habitos, db.registros, async () => {
+    await db.transaction('rw', db.habitos, db.registros, db.eliminaciones, async () => {
+      const habito = await db.habitos.get(id)
+      const registros = await db.registros.where('habitoId').equals(id).toArray()
       await db.registros.where('habitoId').equals(id).delete()
       await db.habitos.delete(id)
+      if (habito) await registrarEliminacion(habito.uuid, 'habitos')
+      for (const registro of registros) await registrarEliminacion(registro.uuid, 'registros')
     })
   } else {
     await actualizarHabito(id, { eliminado: true })
