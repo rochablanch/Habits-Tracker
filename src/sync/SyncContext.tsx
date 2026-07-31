@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
-import { sincronizar } from './syncEngine'
+import { reiniciarCursorSync, sincronizar } from './syncEngine'
 
 const INTERVALO_MS = 60_000
 
@@ -9,6 +9,7 @@ interface SyncContextValue {
   ultimaSincronizacion: Date | null
   error: string | null
   sincronizarAhora: () => Promise<void>
+  sincronizarDeNuevoDesdeCero: () => Promise<void>
 }
 
 const SyncContext = createContext<SyncContextValue | null>(null)
@@ -36,6 +37,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [session])
 
+  const sincronizarDeNuevoDesdeCero = useCallback(async () => {
+    reiniciarCursorSync()
+    await sincronizarAhora()
+  }, [sincronizarAhora])
+
   useEffect(() => {
     if (!session) return
     void sincronizarAhora()
@@ -55,7 +61,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   }, [session, sincronizarAhora])
 
   return (
-    <SyncContext.Provider value={{ sincronizando, ultimaSincronizacion, error, sincronizarAhora }}>
+    <SyncContext.Provider
+      value={{ sincronizando, ultimaSincronizacion, error, sincronizarAhora, sincronizarDeNuevoDesdeCero }}
+    >
       {children}
     </SyncContext.Provider>
   )

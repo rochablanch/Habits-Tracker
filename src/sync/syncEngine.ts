@@ -18,12 +18,32 @@ const CLAVE_ULTIMA_SYNC = 'habitos-tracker-ultima-sync'
 const CLAVE_SYNC_USER_ID = 'habitos-tracker-sync-user-id'
 const EPOCA = '1970-01-01T00:00:00.000Z'
 
+/**
+ * Margen de seguridad para el cursor de "qué cambió desde la última vez". El reloj de este
+ * dispositivo puede no coincidir exactamente con el del servidor, y puede pasar algún segundo
+ * entre que se genera la fecha de un cambio y que ese cambio realmente llega a Supabase. Sin
+ * este margen, un dispositivo que sincroniza justo en ese instante podría "saltarse" un cambio
+ * de otro dispositivo para siempre (el cursor nunca vuelve a mirar hacia atrás). Reprocesar
+ * unos minutos de más es inofensivo (subir/bajar lo mismo dos veces no rompe nada).
+ */
+const MARGEN_SEGURO_MS = 2 * 60_000
+
 function obtenerUltimaSync(): string {
   return localStorage.getItem(CLAVE_ULTIMA_SYNC) ?? EPOCA
 }
 
 function guardarUltimaSync(fecha: string): void {
   localStorage.setItem(CLAVE_ULTIMA_SYNC, fecha)
+}
+
+/**
+ * Vuelve a mirar todo desde cero en la próxima sincronización (como si este dispositivo nunca
+ * hubiera sincronizado). No borra ni duplica nada: solo hace que la próxima sincronización
+ * compare todo de nuevo contra el servidor. Sirve para forzar que un cambio "atascado" se
+ * termine de reflejar.
+ */
+export function reiniciarCursorSync(): void {
+  localStorage.removeItem(CLAVE_ULTIMA_SYNC)
 }
 
 /**
@@ -45,7 +65,7 @@ export async function sincronizar(userId: string): Promise<void> {
   verificarMismaCuenta(userId)
 
   const desde = obtenerUltimaSync()
-  const ahora = new Date().toISOString()
+  const proximoCursor = new Date(Date.now() - MARGEN_SEGURO_MS).toISOString()
 
   // Primero lo que borraron en otros dispositivos, y en ese orden: tombstones antes que
   // datos, para no volver a insertar algo que se acaba de borrar (ver CLAUDE.md).
@@ -61,7 +81,9 @@ export async function sincronizar(userId: string): Promise<void> {
   await pushHabitos(userId, desde)
   await pushRegistros(userId, desde)
 
-  guardarUltimaSync(ahora)
+  // Nunca retrocede: si el dispositivo sincronizó muy seguido, el margen no debe "reabrir"
+  // una ventana ya confirmada.
+  guardarUltimaSync(proximoCursor > desde ? proximoCursor : desde)
   localStorage.setItem(CLAVE_SYNC_USER_ID, userId)
 }
 

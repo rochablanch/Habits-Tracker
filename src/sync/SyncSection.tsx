@@ -16,7 +16,13 @@ function formatearUltimaSync(fecha: Date | null): string {
 
 export function SyncSection() {
   const { session, cargando, enviarLinkMagico, cerrarSesion } = useAuth()
-  const { sincronizando, ultimaSincronizacion, error: errorSync, sincronizarAhora } = useSync()
+  const {
+    sincronizando,
+    ultimaSincronizacion,
+    error: errorSync,
+    sincronizarAhora,
+    sincronizarDeNuevoDesdeCero,
+  } = useSync()
   const [email, setEmail] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
@@ -77,6 +83,15 @@ export function SyncSection() {
             Cerrar sesión
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => void sincronizarDeNuevoDesdeCero()}
+          disabled={sincronizando}
+          className="mt-3 text-xs font-medium text-slate-500 underline decoration-dotted hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:text-slate-200"
+        >
+          ¿Un cambio no se refleja en otro dispositivo? Forzar sincronización completa
+        </button>
       </div>
     )
   }
