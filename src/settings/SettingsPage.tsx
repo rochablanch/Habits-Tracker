@@ -17,6 +17,7 @@ import { useConfiguracion } from '../db/hooks'
 import { eliminarTodosLosDatos } from '../db/resetRepo'
 import { actualizarConfiguracion } from '../db/settingsRepo'
 import type { Configuracion } from '../db/types'
+import { SyncSection } from '../sync/SyncSection'
 import { useTheme, type ThemePreference } from '../theme/ThemeContext'
 import {
   construirRespaldo,
@@ -190,6 +191,10 @@ export function SettingsPage() {
             onCambiar={(v) => cambiarConfig({ animaciones: v })}
           />
         </div>
+      </Seccion>
+
+      <Seccion titulo="Sincronización">
+        <SyncSection />
       </Seccion>
 
       <Seccion titulo="Categorías">
