@@ -75,7 +75,7 @@ src/
     backup.ts (+ .test.ts)  Exportar/validar/restaurar un respaldo completo (JSON)
     AnimationsEffect.tsx    Aplica la clase `.reducir-animaciones` a toda la app según la configuración (no renderiza nada)
     ReminderWatcher.tsx     Recordatorios locales: revisa cada 20s y muestra un aviso descartable
-  sync/           Sincronización entre dispositivos (Supabase) — en curso
+  sync/           Sincronización entre dispositivos (Supabase)
     supabaseClient.ts       Cliente de Supabase (URL + publishable key)
     AuthContext.tsx         Sesión actual de toda la app (`useAuth`)
     SyncContext.tsx         Dispara la sincronización automática y expone su estado (`useSync`)
@@ -157,7 +157,7 @@ public/
 - [x] **Publicada online**: https://habits-tracker-wheat.vercel.app (GitHub + Vercel, se actualiza sola con cada `git push` a `main`). Instalada y probada en un Android real: PWA, crear/marcar hábitos, y exportar → importar de punta a punta, todo verificado en el dispositivo del usuario.
 - [x] **Más íconos y colores**: catálogo ampliado a ~94 íconos y 20 colores, con buscador en español (`buscarIconos`).
 - [x] **Gestión de categorías**: pantalla dedicada para crear, editar y eliminar categorías (`settings/CategoriesPage.tsx`, desde Configuración), verificada en navegador (crear, editar, y eliminar con reasignación de hábitos, sin errores de consola).
-- [ ] **Sincronización entre dispositivos** (en curso, con Supabase — plan gratuito, sin costo): [x] Sync A — uuid estable en hábitos/registros/categorías (108/108 pruebas automáticas pasando, verificado en navegador real incluyendo migración de datos ya existentes). [x] Sync B — esquema Postgres + RLS en Supabase (4 tablas: habitos, registros, categorias, tombstones — todas creadas por el usuario en su proyecto). [x] Sync C — inicio de sesión con link mágico, verificado con una cuenta real (`rochablanch@gmail.com`). [x] Sync D — motor de sincronización, push/pull con "última escritura gana" y borrados permanentes vía tombstones (122/122 pruebas automáticas pasando; verificado en el dispositivo real del usuario contra la producción en Vercel: sesión iniciada + "Sincronizado recién" sin errores). [ ] Sync E — confirmar que un hábito creado/marcado en un dispositivo aparece en otro (segundo dispositivo o navegador con la misma cuenta).
+- [x] **Sincronización entre dispositivos**, con Supabase (plan gratuito, sin costo): Sync A (uuid estable), Sync B (esquema Postgres + RLS), Sync C (inicio de sesión con link mágico), Sync D (motor de sincronización: push/pull, última escritura gana, borrados permanentes vía tombstones), Sync E (verificado de punta a punta en dispositivos reales del usuario — tablet Android + teléfono Android, misma cuenta: hábitos, marcar/desmarcar y borrados se reflejan correctamente entre los dos). En el camino se encontró y corrigió un bug real de sincronización muy seguida entre dos dispositivos (carrera del cursor, ver más abajo) — quedó además un botón "Forzar sincronización completa" como herramienta permanente para cualquier caso futuro de "no se actualizó".
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
 
