@@ -1,14 +1,17 @@
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronRight,
   Download,
   Moon,
   MonitorSmartphone,
   Sun,
+  Tags,
   Trash2,
   Upload,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useConfiguracion } from '../db/hooks'
 import { eliminarTodosLosDatos } from '../db/resetRepo'
@@ -187,6 +190,19 @@ export function SettingsPage() {
             onCambiar={(v) => cambiarConfig({ animaciones: v })}
           />
         </div>
+      </Seccion>
+
+      <Seccion titulo="Categorías">
+        <Link
+          to="/configuracion/categorias"
+          className="flex items-center justify-between gap-2 rounded-xl py-1 text-sm font-medium text-slate-800 hover:text-brand-700 dark:text-slate-200 dark:hover:text-brand-400"
+        >
+          <span className="flex items-center gap-2">
+            <Tags className="h-4 w-4" aria-hidden="true" />
+            Crear, editar o eliminar categorías
+          </span>
+          <ChevronRight className="h-4 w-4 text-slate-400" aria-hidden="true" />
+        </Link>
       </Seccion>
 
       <Seccion titulo="Fecha">

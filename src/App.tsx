@@ -8,6 +8,7 @@ import { OnboardingPage } from './onboarding/OnboardingPage'
 import { RequireOnboarding } from './onboarding/RequireOnboarding'
 import { PanelPage } from './panel/PanelPage'
 import { AnimationsEffect } from './settings/AnimationsEffect'
+import { CategoriesPage } from './settings/CategoriesPage'
 import { ReminderWatcher } from './settings/ReminderWatcher'
 import { SettingsPage } from './settings/SettingsPage'
 
@@ -46,6 +47,7 @@ function App() {
           <Route path="/habitos/nuevo" element={<HabitFormPage />} />
           <Route path="/habitos/:id/editar" element={<HabitFormPage />} />
           <Route path="/configuracion" element={<SettingsPage />} />
+          <Route path="/configuracion/categorias" element={<CategoriesPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

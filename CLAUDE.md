@@ -69,6 +69,7 @@ src/
     PeriodSelector.tsx, HeatmapCalendar.tsx, EvolutionChart.tsx, HabitRankingList.tsx, CategoryBreakdown.tsx, WeekdayBreakdown.tsx
   settings/       Configuración, respaldo y efectos globales (ruta "/configuracion")
     SettingsPage.tsx        Tema, primer día de semana, formato de fecha, animaciones, frases, recordatorios, respaldo, borrado total
+    CategoriesPage.tsx      Gestión de categorías: crear, editar y eliminar (ruta "/configuracion/categorias")
     backup.ts (+ .test.ts)  Exportar/validar/restaurar un respaldo completo (JSON)
     AnimationsEffect.tsx    Aplica la clase `.reducir-animaciones` a toda la app según la configuración (no renderiza nada)
     ReminderWatcher.tsx     Recordatorios locales: revisa cada 20s y muestra un aviso descartable
@@ -89,6 +90,7 @@ public/
 - `eliminarHabito` sin opciones = borrado suave (oculta, conserva historial). `eliminarHabito(id, { borrarHistorial: true })` = borrado permanente e irreversible de hábito + registros.
 - El campo `estado` (activo/pausado/archivado) del hábito **no es editable desde el formulario**: se cambia únicamente desde los botones de acción de la lista de gestión (Pausar/Reanudar/Archivar/Reactivar), para evitar dos caminos distintos que lleven a estados inconsistentes.
 - Paleta de íconos y colores es una selección curada (no el catálogo completo de Lucide) para mantener el bundle liviano y la elección simple; ver `src/habits/icons.ts` y `colors.ts`. Ampliada después de la v1 a ~94 íconos y 20 colores, con buscador en español (`buscarIconos`, por nombre de ícono o palabras clave tipo "agua", "dinero", "ejercicio"; sin distinguir mayúsculas ni acentos).
+- **Gestión de categorías** (`settings/CategoriesPage.tsx`, ruta "/configuracion/categorias", accesible desde un link en Configuración): la capa de datos (`categoriesRepo.ts`) existía desde la Etapa 1, pero no tenía pantalla propia hasta ahora — se agregó para cumplir el pedido original de poder crear/editar/eliminar categorías. Reutiliza `IconPicker` y `ColorPicker` (los mismos del formulario de hábitos) en vez de duplicarlos. Junto a cada categoría se muestra cuántos hábitos la usan (contando activos, pausados y archivados, pero no eliminados); al eliminar una categoría, el aviso de confirmación anticipa ese número y aclara que esos hábitos quedan "sin categoría" (no se borran, ver `eliminarCategoria` en `categoriesRepo.ts`). Las categorías predefinidas también se pueden renombrar/recolorear/eliminar como cualquier otra — no hay ninguna protección especial para ellas.
 - **Cumplimiento del día**: un hábito puede estar `pendiente` (sin registro), `logrado`, `parcial` (cantidad/tiempo por debajo de la meta), `excedido` (límite máximo superado) u `omitido`. Un hábito sí/no con `vecesPorDia > 1` se trata internamente como un contador (meta = vecesPorDia), igual que cantidad/tiempo/límite. Ver `src/habits/dailyStatus.ts`.
 - **Notas diarias solo sobre un registro existente**: para agregar una nota primero hay que marcar el hábito (completado, contador, u omitido). Evita marcar un día como "hecho" solo por escribir una nota.
 - **Incrementar/decrementar contadores** usa `incrementarRegistro` (lee el valor actual desde la base de datos dentro de una transacción), no el valor en pantalla — así varios taps seguidos en +/- se acumulan bien y no se pisan entre sí. Bug real encontrado y corregido durante la Etapa 3.
@@ -134,6 +136,7 @@ public/
 - [x] Etapa 8 — Pulido, accesibilidad, PWA instalable, pruebas finales (99/99 pruebas automáticas pasando, probado en navegador)
 - [x] **Publicada online**: https://habits-tracker-wheat.vercel.app (GitHub + Vercel, se actualiza sola con cada `git push` a `main`). Instalada y probada en un Android real: PWA, crear/marcar hábitos, y exportar → importar de punta a punta, todo verificado en el dispositivo del usuario.
 - [x] **Más íconos y colores**: catálogo ampliado a ~94 íconos y 20 colores, con buscador en español (`buscarIconos`).
+- [x] **Gestión de categorías**: pantalla dedicada para crear, editar y eliminar categorías (`settings/CategoriesPage.tsx`, desde Configuración), verificada en navegador (crear, editar, y eliminar con reasignación de hábitos, sin errores de consola).
 - [ ] **Sincronización entre dispositivos** (en curso, con Supabase — plan gratuito, sin costo): [x] Sync A — uuid estable en hábitos/registros/categorías (108/108 pruebas automáticas pasando, verificado en navegador real incluyendo migración de datos ya existentes). [ ] Sync B — esquema Postgres + RLS en Supabase. [ ] Sync C — inicio de sesión con link mágico. [ ] Sync D — motor de sincronización (push/pull, last-write-wins). [ ] Sync E — prueba real en dos dispositivos.
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
