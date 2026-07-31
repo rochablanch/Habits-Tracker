@@ -31,7 +31,7 @@ export function SyncSection() {
     const { error: errorEnvio } = await enviarLinkMagico(correo)
     setEnviando(false)
     if (errorEnvio) {
-      setError('No se pudo enviar el link. Revisá el correo e intentá de nuevo.')
+      setError(`No se pudo enviar el link: ${errorEnvio}`)
     } else {
       setMensaje(`Te enviamos un link a ${correo}. Abrilo desde este dispositivo para iniciar sesión.`)
     }
