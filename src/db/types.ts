@@ -26,6 +26,8 @@ export type Prioridad = 'baja' | 'media' | 'alta'
 
 export interface Habito {
   id: number
+  /** Identificador estable (igual en todos los dispositivos) usado para sincronizar. No cambia nunca. */
+  uuid: string
   nombre: string
   descripcion?: string
   icono: string
@@ -56,6 +58,8 @@ export type EstadoRegistro = 'completado' | 'omitido'
 
 export interface RegistroDiario {
   id: number
+  /** Identificador estable (igual en todos los dispositivos) usado para sincronizar. No cambia nunca. */
+  uuid: string
   habitoId: number
   fecha: string // YYYY-MM-DD
   estado: EstadoRegistro
@@ -69,6 +73,8 @@ export interface RegistroDiario {
 
 export interface Categoria {
   id: number
+  /** Identificador estable (igual en todos los dispositivos) usado para sincronizar. No cambia nunca. */
+  uuid: string
   nombre: string
   color: string
   icono: string

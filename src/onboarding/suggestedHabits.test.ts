@@ -3,8 +3,8 @@ import type { Categoria } from '../db/types'
 import { HABITOS_SUGERIDOS, resolverHabitoSugerido } from './suggestedHabits'
 
 const CATEGORIAS: Categoria[] = [
-  { id: 1, nombre: 'Salud', color: '#ef4444', icono: 'HeartPulse', predefinida: true },
-  { id: 8, nombre: 'Estudio', color: '#8b5cf6', icono: 'BookOpen', predefinida: true },
+  { id: 1, uuid: 'cat-salud', nombre: 'Salud', color: '#ef4444', icono: 'HeartPulse', predefinida: true },
+  { id: 8, uuid: 'cat-estudio', nombre: 'Estudio', color: '#8b5cf6', icono: 'BookOpen', predefinida: true },
 ]
 
 describe('resolverHabitoSugerido', () => {

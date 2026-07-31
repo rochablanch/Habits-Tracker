@@ -29,6 +29,7 @@ export async function registrarCumplimiento(
     }
 
     return db.registros.add({
+      uuid: crypto.randomUUID(),
       habitoId,
       fecha,
       ...datos,
@@ -59,6 +60,7 @@ export async function incrementarRegistro(habitoId: number, fecha: string, delta
       await db.registros.update(existente.id, { valor: nuevoValor, estado: 'completado', updatedAt: ahora })
     } else {
       await db.registros.add({
+        uuid: crypto.randomUUID(),
         habitoId,
         fecha,
         estado: 'completado',

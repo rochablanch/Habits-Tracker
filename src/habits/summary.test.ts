@@ -5,6 +5,7 @@ import { resumenUltimosDias } from './summary'
 function habito(id: number, cambios: Partial<Habito> = {}): Habito {
   return {
     id,
+    uuid: `habito-uuid-${id}`,
     nombre: `Hábito ${id}`,
     icono: 'Sparkles',
     color: '#6366f1',
@@ -25,7 +26,7 @@ function habito(id: number, cambios: Partial<Habito> = {}): Habito {
 }
 
 function completado(habitoId: number, fecha: string): RegistroDiario {
-  return { id: 0, habitoId, fecha, estado: 'completado', createdAt: '', updatedAt: '' }
+  return { id: 0, uuid: `registro-${habitoId}-${fecha}`, habitoId, fecha, estado: 'completado', createdAt: '', updatedAt: '' }
 }
 
 describe('resumenUltimosDias', () => {

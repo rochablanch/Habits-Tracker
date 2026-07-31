@@ -5,13 +5,13 @@ export async function listarCategorias(): Promise<Categoria[]> {
   return db.categorias.orderBy('nombre').toArray()
 }
 
-export async function crearCategoria(datos: Omit<Categoria, 'id' | 'predefinida'>): Promise<number> {
-  return db.categorias.add({ ...datos, predefinida: false })
+export async function crearCategoria(datos: Omit<Categoria, 'id' | 'uuid' | 'predefinida'>): Promise<number> {
+  return db.categorias.add({ ...datos, uuid: crypto.randomUUID(), predefinida: false })
 }
 
 export async function actualizarCategoria(
   id: number,
-  cambios: Partial<Omit<Categoria, 'id' | 'predefinida'>>,
+  cambios: Partial<Omit<Categoria, 'id' | 'uuid' | 'predefinida'>>,
 ): Promise<void> {
   await db.categorias.update(id, cambios)
 }

@@ -15,6 +15,7 @@ import type { RangoFechas } from './period'
 function habito(id: number, cambios: Partial<Habito> = {}): Habito {
   return {
     id,
+    uuid: `habito-uuid-${id}`,
     nombre: `Hábito ${id}`,
     icono: 'Sparkles',
     color: '#6366f1',
@@ -35,7 +36,7 @@ function habito(id: number, cambios: Partial<Habito> = {}): Habito {
 }
 
 function completado(habitoId: number, fecha: string): RegistroDiario {
-  return { id: 0, habitoId, fecha, estado: 'completado', createdAt: '', updatedAt: '' }
+  return { id: 0, uuid: `registro-${habitoId}-${fecha}`, habitoId, fecha, estado: 'completado', createdAt: '', updatedAt: '' }
 }
 
 const RANGO: RangoFechas = { desde: '2026-07-01', hasta: '2026-07-10' } // 10 días
@@ -67,8 +68,8 @@ describe('cumplimientoPorHabito / cumplimientoEnRango', () => {
 })
 
 describe('cumplimientoPorCategoria', () => {
-  const salud: Categoria = { id: 1, nombre: 'Salud', color: '#ef4444', icono: 'HeartPulse', predefinida: true }
-  const estudio: Categoria = { id: 2, nombre: 'Estudio', color: '#8b5cf6', icono: 'BookOpen', predefinida: true }
+  const salud: Categoria = { id: 1, uuid: 'cat-salud', nombre: 'Salud', color: '#ef4444', icono: 'HeartPulse', predefinida: true }
+  const estudio: Categoria = { id: 2, uuid: 'cat-estudio', nombre: 'Estudio', color: '#8b5cf6', icono: 'BookOpen', predefinida: true }
 
   it('agrupa el cumplimiento por categoría y ordena de mayor a menor', () => {
     const habitos = [habito(1, { categoriaId: 1 }), habito(2, { categoriaId: 2 })]

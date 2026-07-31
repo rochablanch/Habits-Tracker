@@ -107,6 +107,11 @@ export function validarRespaldo(datos: unknown): RespaldoDatos | null {
   return d as unknown as RespaldoDatos
 }
 
+/** A los registros de un respaldo exportado antes de que existiera "uuid" se les asigna uno nuevo al restaurar. */
+function conUuid<T extends { uuid?: string }>(items: T[]): (T & { uuid: string })[] {
+  return items.map((item) => ({ ...item, uuid: item.uuid ?? crypto.randomUUID() }))
+}
+
 /** Reemplaza todos los datos actuales por los del respaldo. Irreversible salvo que se haya guardado una copia antes. */
 export async function restaurarRespaldo(datos: RespaldoDatos): Promise<void> {
   await db.transaction('rw', db.habitos, db.registros, db.categorias, db.configuracion, async () => {
@@ -115,9 +120,9 @@ export async function restaurarRespaldo(datos: RespaldoDatos): Promise<void> {
     await db.categorias.clear()
     await db.configuracion.clear()
 
-    if (datos.categorias.length > 0) await db.categorias.bulkAdd(datos.categorias)
-    if (datos.habitos.length > 0) await db.habitos.bulkAdd(datos.habitos)
-    if (datos.registros.length > 0) await db.registros.bulkAdd(datos.registros)
+    if (datos.categorias.length > 0) await db.categorias.bulkAdd(conUuid(datos.categorias))
+    if (datos.habitos.length > 0) await db.habitos.bulkAdd(conUuid(datos.habitos))
+    if (datos.registros.length > 0) await db.registros.bulkAdd(conUuid(datos.registros))
     // Se combina con los valores por defecto por si el respaldo es de una versión anterior de la app.
     await db.configuracion.add({ ...CONFIGURACION_POR_DEFECTO, ...datos.configuracion })
   })

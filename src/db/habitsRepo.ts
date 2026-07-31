@@ -1,12 +1,13 @@
 import { db } from './db'
 import type { Habito } from './types'
 
-export type NuevoHabito = Omit<Habito, 'id' | 'createdAt' | 'updatedAt' | 'eliminado'>
+export type NuevoHabito = Omit<Habito, 'id' | 'uuid' | 'createdAt' | 'updatedAt' | 'eliminado'>
 
 export async function crearHabito(datos: NuevoHabito): Promise<number> {
   const ahora = new Date().toISOString()
   return db.habitos.add({
     ...datos,
+    uuid: crypto.randomUUID(),
     eliminado: false,
     createdAt: ahora,
     updatedAt: ahora,

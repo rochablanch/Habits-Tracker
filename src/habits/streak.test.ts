@@ -7,6 +7,7 @@ const HOY = '2026-07-28' // martes
 function habito(cambios: Partial<Habito> = {}): Habito {
   return {
     id: 1,
+    uuid: 'habito-uuid-1',
     nombre: 'Hábito',
     icono: 'Sparkles',
     color: '#6366f1',
@@ -27,7 +28,7 @@ function habito(cambios: Partial<Habito> = {}): Habito {
 }
 
 function completado(fecha: string): RegistroDiario {
-  return { id: 0, habitoId: 1, fecha, estado: 'completado', createdAt: '', updatedAt: '' }
+  return { id: 0, uuid: `registro-${fecha}`, habitoId: 1, fecha, estado: 'completado', createdAt: '', updatedAt: '' }
 }
 
 describe('calcularRachaActual — hábitos diarios', () => {

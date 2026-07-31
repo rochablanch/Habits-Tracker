@@ -5,6 +5,7 @@ import { aplicaEnFecha, estadoVisualDia, metaDelDia, seCumplioEnFecha, unidadDia
 function habito(cambios: Partial<Habito> = {}): Habito {
   return {
     id: 1,
+    uuid: 'habito-uuid-1',
     nombre: 'Hábito',
     icono: 'Sparkles',
     color: '#6366f1',
@@ -27,6 +28,7 @@ function habito(cambios: Partial<Habito> = {}): Habito {
 function registro(cambios: Partial<RegistroDiario> = {}): RegistroDiario {
   return {
     id: 1,
+    uuid: 'registro-uuid-1',
     habitoId: 1,
     fecha: '2026-07-28',
     estado: 'completado',
