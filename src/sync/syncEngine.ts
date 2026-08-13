@@ -169,7 +169,10 @@ async function pushEliminaciones(userId: string): Promise<void> {
 
     const { error: errorTombstone } = await supabase
       .from('tombstones')
-      .upsert({ uuid: e.uuid, user_id: userId, tabla: e.tabla, eliminado_en: e.eliminadoEn }, { onConflict: 'uuid' })
+      .upsert(
+        { uuid: e.uuid, user_id: userId, tabla: e.tabla, eliminado_en: e.eliminadoEn },
+        { onConflict: 'user_id,uuid' },
+      )
     if (errorTombstone) throw new Error(errorTombstone.message)
 
     await db.eliminaciones.delete(e.id)
@@ -182,7 +185,10 @@ async function pushCategorias(userId: string): Promise<void> {
   const categorias = await db.categorias.toArray()
   if (categorias.length === 0) return
   const filas = categorias.map((c) => categoriaARemoto(c, userId))
-  const { error } = await supabase.from('categorias').upsert(filas, { onConflict: 'uuid' })
+  // onConflict es "user_id,uuid" (no solo "uuid"): las categorías predefinidas usan el mismo
+  // uuid en todas las cuentas a propósito (ver CLAUDE.md), así que "uuid" solo no identifica
+  // una fila única en toda la tabla si hay más de una persona sincronizando.
+  const { error } = await supabase.from('categorias').upsert(filas, { onConflict: 'user_id,uuid' })
   if (error) throw new Error(error.message)
 }
 
