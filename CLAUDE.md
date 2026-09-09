@@ -25,7 +25,7 @@ Sin backend en la v1. Sin cuentas de usuario. Todo el estado vive en el disposit
 - **Eliminar ≠ borrar historial**: "Archivar" es reversible y oculta el hábito de la vista diaria. "Eliminar" pide confirmación explícita; por defecto conserva el historial en estadísticas, con una opción aparte (doble confirmación) para borrar todo.
 - **Tema (claro/oscuro/sistema)** se guarda en `localStorage` bajo la clave `habitos-tracker-theme`, separado del resto de la configuración (que vive en Dexie). Motivo: se necesita leerlo de forma síncrona antes de que React monte, para evitar un parpadeo del tema incorrecto (hay un script inline en `index.html` que hace esto).
 - **Estadísticas con pocos datos**: si un hábito tiene menos de ~7 días de historial, las métricas de tendencia muestran un aviso de "datos insuficientes" en vez de un número que aparente ser concluyente.
-- **Recordatorios v1**: son locales (`ReminderWatcher` revisa cada 20s si la hora actual coincide con la hora preferida de algún hábito activo todavía sin registrar hoy, mientras la app está abierta) y se muestran como un aviso descartable dentro de la app, no como notificación del sistema operativo — eso requeriría pedir permiso del navegador y, para funcionar con la app cerrada, un servidor push. Documentado como mejora futura.
+- **Recordatorios**: son locales (`ReminderWatcher` + `reminders.ts`) y se muestran como un aviso descartable dentro de la app, no como notificación del sistema operativo — eso requeriría pedir permiso del navegador y, para funcionar con la app cerrada, un servidor push. Documentado como mejora futura. El aviso aparece cuando la hora preferida **ya llegó o ya pasó** y el hábito activo sigue sin registrar hoy; queda pendiente hasta que se registre, se descarte, o termine el día (ver el bug corregido más abajo).
 - **Sin sincronización entre dispositivos en v1**: cada navegador/dispositivo tiene su copia local. El respaldo/restauración manual (exportar/importar JSON) es el mecanismo de transferencia entre dispositivos por ahora.
 
 ## Estructura del proyecto
@@ -74,7 +74,8 @@ src/
     CategoriesPage.tsx      Gestión de categorías: crear, editar y eliminar (ruta "/configuracion/categorias")
     backup.ts (+ .test.ts)  Exportar/validar/restaurar un respaldo completo (JSON)
     AnimationsEffect.tsx    Aplica la clase `.reducir-animaciones` a toda la app según la configuración (no renderiza nada)
-    ReminderWatcher.tsx     Recordatorios locales: revisa cada 20s y muestra un aviso descartable
+    ReminderWatcher.tsx     Recordatorios locales: muestra el aviso descartable en pantalla
+    reminders.ts (+ .test.ts)  Qué hábitos corresponde recordar ahora, y memoria de los avisos descartados hoy
   sync/           Sincronización entre dispositivos (Supabase)
     supabaseClient.ts       Cliente de Supabase (URL + publishable key)
     AuthContext.tsx         Sesión actual de toda la app (`useAuth`)
@@ -136,6 +137,19 @@ public/
   - **Bug real encontrado al agregar una segunda persona (la hermana del usuario) a la misma base de Supabase**: `categorias` y `tombstones` tenían `uuid` solo como clave primaria en la tabla remota. Las categorías predefinidas usan a propósito el mismo `uuid` en todas las cuentas (para que cada quien no duplique "Salud" al sincronizar sus propios dispositivos, ver Sync A) — pero eso significa que `uuid` solo deja de ser único apenas hay más de una cuenta sincronizando: la segunda persona en sincronizar recibía el error de Postgres "new row violates row-level security policy" al intentar subir sus categorías predefinidas, porque el `upsert` chocaba con la fila (con ese mismo uuid) de la primera persona, y RLS le impedía tocarla. Arreglado cambiando la clave primaria de esas dos tablas a `(user_id, uuid)` (migración SQL aparte) y ajustando el `onConflict` del `upsert` en el código (`syncEngine.ts`) para que coincida. `habitos` y `registros` no tienen este problema: sus uuids se generan al azar (`crypto.randomUUID()`), así que un choque entre dos cuentas distintas es prácticamente imposible.
   - **Bug real encontrado en la verificación con dos dispositivos (tablet + teléfono)**: el cursor "qué cambió desde la última vez" (`habitos-tracker-ultima-sync`) se guardaba con la hora exacta en que arrancaba cada sincronización. Sincronizando varias veces seguidas desde dos dispositivos (como al probarlo), un dispositivo podía guardar un cursor más nuevo que el momento en que otro dispositivo recién estaba subiendo un borrado (ej. desmarcar un hábito) — y como el cursor nunca "retrocede", ese cambio quedaba salteado para siempre, sin ningún error visible. Arreglado con un margen de seguridad de 2 minutos al guardar el cursor (`MARGEN_SEGURO_MS` en `syncEngine.ts`): es inofensivo repetir un poco de trabajo (subir/bajar lo mismo dos veces no rompe nada gracias a que todo es upsert/borrar-si-existe), pero si nunca "sobrara" margen un cambio real podía perderse silenciosamente. Además, como este margen no corrige un cursor que ya había quedado adelantado *antes* del arreglo, se agregó un botón "Forzar sincronización completa" (`reiniciarCursorSync`) en Configuración → Sincronización, que vuelve a comparar todo desde cero — pensado tanto para resolver este caso puntual como para cualquier futuro "no se actualizó" sin tener que investigar la causa a distancia.
 
+
+### Bug de recordatorios (encontrado usando la app a diario, después de la sincronización)
+
+El recordatorio configurado a una hora nunca aparecía. Tres causas, todas en `ReminderWatcher`:
+
+1. **Coincidencia de minuto exacto** (`h.horaPreferida === horaActual`): el aviso solo podía salir si la app estaba abierta y con los temporizadores corriendo justo durante ese minuto. En el celular, la PWA cerrada o en segundo plano (pantalla apagada) tiene los `setInterval` frenados o directamente detenidos, así que ese minuto se pasaba y el recordatorio no se mostraba nunca. Corregido: la condición ahora es `horaPreferida <= horaActual` (`recordatoriosPendientes` en `src/settings/reminders.ts`) — el aviso queda pendiente hasta que el hábito se registre, se descarte, o termine el día. Además se revisa también al volver la pestaña a estar visible o enfocada (`visibilitychange`/`focus`), no solo cada 20s, para que aparezca apenas se abre la app.
+2. **El aviso no se iba al marcar el hábito**: la lista de avisos se acumulaba en estado (`setAvisos(prev => [...prev, ...])`) y solo se limpiaba con la X. Ahora se deriva en cada render de los datos actuales (`useMemo`), así que registrar el hábito hace desaparecer su aviso solo.
+3. **El descarte se perdía al recargar**: vivía en un `useRef`. Ahora se guarda en `localStorage` bajo `habitos-tracker-recordatorios-descartados` junto con la fecha (`{ fecha, ids }`) — información del dispositivo, no de la app, mismo criterio que el tema y el cursor de sincronización — y al cambiar el día los descartes de ayer dejan de aplicar solos.
+
+El texto del aviso cambia según cuánto pasó: "Es hora de X" dentro de la primera hora, "Te quedó pendiente X (era a las 08:00)" después. Probado con 14 pruebas automáticas nuevas (`src/settings/reminders.test.ts`) y verificado en el navegador con dos hábitos reales (uno con hora ya pasada → avisa; otro con hora futura → no avisa; marcar → el aviso se va; descartar → sigue descartado tras recargar; descarte de ayer → vuelve a avisar hoy).
+
+**Límite que sigue vigente**: esto es un aviso *dentro* de la app, así que solo aparece cuando el usuario la abre. Para que el teléfono avise con la app cerrada hacen falta notificaciones reales del sistema (ver Pendientes).
+
 ## Reglas de trabajo
 
 - Etapas pequeñas; cada una se verifica corriendo la app antes de pasar a la siguiente.
@@ -159,6 +173,7 @@ public/
 - [x] **Más íconos y colores**: catálogo ampliado a ~94 íconos y 20 colores, con buscador en español (`buscarIconos`).
 - [x] **Gestión de categorías**: pantalla dedicada para crear, editar y eliminar categorías (`settings/CategoriesPage.tsx`, desde Configuración), verificada en navegador (crear, editar, y eliminar con reasignación de hábitos, sin errores de consola).
 - [x] **Sincronización entre dispositivos**, con Supabase (plan gratuito, sin costo): Sync A (uuid estable), Sync B (esquema Postgres + RLS), Sync C (inicio de sesión con link mágico), Sync D (motor de sincronización: push/pull, última escritura gana, borrados permanentes vía tombstones), Sync E (verificado de punta a punta en dispositivos reales del usuario — tablet Android + teléfono Android, misma cuenta: hábitos, marcar/desmarcar y borrados se reflejan correctamente entre los dos). En el camino se encontró y corrigió un bug real de sincronización muy seguida entre dos dispositivos (carrera del cursor, ver más abajo) — quedó además un botón "Forzar sincronización completa" como herramienta permanente para cualquier caso futuro de "no se actualizó".
+- [x] **Recordatorios corregidos**: el aviso por hora preferida no aparecía nunca (coincidencia de minuto exacto contra temporizadores frenados en segundo plano). Corregido y probado (136/136 pruebas automáticas pasando, verificado en navegador). Ver la sección "Bug de recordatorios" más arriba.
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
 
