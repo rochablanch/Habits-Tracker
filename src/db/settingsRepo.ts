@@ -8,6 +8,7 @@ export const CONFIGURACION_POR_DEFECTO: Configuracion = {
   animaciones: true,
   frasesMotivacionales: true,
   recordatoriosActivos: true,
+  notificacionesSistema: false,
   onboardingCompletado: false,
 }
 

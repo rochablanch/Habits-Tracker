@@ -1,7 +1,15 @@
 import { Bell, X } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useConfiguracion, useHabitos, useRegistrosEnRango } from '../db/hooks'
 import { todayISO } from '../utils/date'
+import {
+  estadoPermiso,
+  guardarNotificados,
+  leerNotificados,
+  mostrarNotificacion,
+  sinNotificarTodavia,
+  textoNotificacion,
+} from './notifications'
 import {
   guardarDescartes,
   horaActualHHMM,
@@ -68,6 +76,39 @@ export function ReminderWatcher() {
       descartados,
     })
   }, [configuracion, habitos, registrosHoy, ahora, descartados])
+
+  // Notificación del sistema operativo (si el usuario la activó y dio permiso): una por
+  // hábito por día. Se dispara desde acá, así que llega mientras la app siga viva —también
+  // minimizada o con la pantalla apagada— pero no si el usuario la cerró del todo.
+  const notificando = useRef(false)
+  useEffect(() => {
+    if (!configuracion?.notificacionesSistema || avisos.length === 0 || notificando.current) return
+    if (estadoPermiso() !== 'granted') return
+
+    const yaNotificados = leerNotificados(ahora.fecha)
+    const nuevos = sinNotificarTodavia(avisos, yaNotificados)
+    if (nuevos.length === 0) return
+
+    // `notificando` evita mandar la misma notificación dos veces si el componente se vuelve
+    // a dibujar mientras las anteriores todavía se están enviando.
+    notificando.current = true
+    Promise.all(
+      nuevos.map(async (habito) => {
+        const { titulo, cuerpo } = textoNotificacion(habito)
+        const salio = await mostrarNotificacion(titulo, cuerpo, `habito-${habito.id}`)
+        return salio ? habito.id : null
+      }),
+    )
+      .then((resultados) => {
+        // Solo se recuerdan las que realmente salieron: si una falla, se reintenta en la
+        // próxima revisión en vez de darla por avisada.
+        const enviadas = resultados.filter((id): id is number => id !== null)
+        if (enviadas.length > 0) guardarNotificados(ahora.fecha, [...yaNotificados, ...enviadas])
+      })
+      .finally(() => {
+        notificando.current = false
+      })
+  }, [avisos, configuracion, ahora.fecha])
 
   const descartar = useCallback(
     (id: number) => {

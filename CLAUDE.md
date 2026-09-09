@@ -25,7 +25,7 @@ Sin backend en la v1. Sin cuentas de usuario. Todo el estado vive en el disposit
 - **Eliminar ≠ borrar historial**: "Archivar" es reversible y oculta el hábito de la vista diaria. "Eliminar" pide confirmación explícita; por defecto conserva el historial en estadísticas, con una opción aparte (doble confirmación) para borrar todo.
 - **Tema (claro/oscuro/sistema)** se guarda en `localStorage` bajo la clave `habitos-tracker-theme`, separado del resto de la configuración (que vive en Dexie). Motivo: se necesita leerlo de forma síncrona antes de que React monte, para evitar un parpadeo del tema incorrecto (hay un script inline en `index.html` que hace esto).
 - **Estadísticas con pocos datos**: si un hábito tiene menos de ~7 días de historial, las métricas de tendencia muestran un aviso de "datos insuficientes" en vez de un número que aparente ser concluyente.
-- **Recordatorios**: son locales (`ReminderWatcher` + `reminders.ts`) y se muestran como un aviso descartable dentro de la app, no como notificación del sistema operativo — eso requeriría pedir permiso del navegador y, para funcionar con la app cerrada, un servidor push. Documentado como mejora futura. El aviso aparece cuando la hora preferida **ya llegó o ya pasó** y el hábito activo sigue sin registrar hoy; queda pendiente hasta que se registre, se descarte, o termine el día (ver el bug corregido más abajo).
+- **Recordatorios**: son locales (`ReminderWatcher` + `reminders.ts`). El aviso aparece cuando la hora preferida **ya llegó o ya pasó** y el hábito activo sigue sin registrar hoy; queda pendiente hasta que se registre, se descarte, o termine el día (ver el bug corregido más abajo). Se muestran de dos formas: siempre como un cartel descartable dentro de la app, y —si el usuario lo activa— además como notificación del sistema operativo (`notifications.ts`, ver abajo).
 - **Sin sincronización entre dispositivos en v1**: cada navegador/dispositivo tiene su copia local. El respaldo/restauración manual (exportar/importar JSON) es el mecanismo de transferencia entre dispositivos por ahora.
 
 ## Estructura del proyecto
@@ -76,6 +76,7 @@ src/
     AnimationsEffect.tsx    Aplica la clase `.reducir-animaciones` a toda la app según la configuración (no renderiza nada)
     ReminderWatcher.tsx     Recordatorios locales: muestra el aviso descartable en pantalla
     reminders.ts (+ .test.ts)  Qué hábitos corresponde recordar ahora, y memoria de los avisos descartados hoy
+    notifications.ts (+ .test.ts)  Notificaciones del sistema operativo: permiso, envío y memoria de lo ya notificado
   sync/           Sincronización entre dispositivos (Supabase)
     supabaseClient.ts       Cliente de Supabase (URL + publishable key)
     AuthContext.tsx         Sesión actual de toda la app (`useAuth`)
@@ -88,6 +89,7 @@ src/
     RequireOnboarding.tsx   Manda a "/bienvenida" si `configuracion.onboardingCompletado` es false
     suggestedHabits.ts (+ .test.ts)  Catálogo de hábitos sugeridos y su conversión a NuevoHabito
 public/
+  sw-notificaciones.js  Se suma al service worker de la PWA: qué hacer al tocar una notificación
   icon.svg              Ícono base (favicon, y fuente para generar el resto)
   icon-192.png, icon-512.png, apple-touch-icon.png   Iconos PWA generados desde icon.svg (ver nota abajo)
 ```
@@ -148,7 +150,18 @@ El recordatorio configurado a una hora nunca aparecía. Tres causas, todas en `R
 
 El texto del aviso cambia según cuánto pasó: "Es hora de X" dentro de la primera hora, "Te quedó pendiente X (era a las 08:00)" después. Probado con 14 pruebas automáticas nuevas (`src/settings/reminders.test.ts`) y verificado en el navegador con dos hábitos reales (uno con hora ya pasada → avisa; otro con hora futura → no avisa; marcar → el aviso se va; descartar → sigue descartado tras recargar; descarte de ayer → vuelve a avisar hoy).
 
-**Límite que sigue vigente**: esto es un aviso *dentro* de la app, así que solo aparece cuando el usuario la abre. Para que el teléfono avise con la app cerrada hacen falta notificaciones reales del sistema (ver Pendientes).
+**Límite que resolvió el paso siguiente**: el cartel es un aviso *dentro* de la app, así que solo aparece cuando el usuario la abre. Ver "Notificaciones del sistema" abajo.
+
+### Notificaciones del sistema operativo (versión sin servidor)
+
+`src/settings/notifications.ts` + `public/sw-notificaciones.js`. Es la versión **intermedia** de las notificaciones: las dispara la app misma desde `ReminderWatcher`, no un servidor. Consecuencia práctica, que se le dice al usuario en la propia pantalla de Configuración: el aviso llega mientras la app siga viva —también minimizada o con la pantalla apagada— pero **no** si la cerró del todo. La versión que avisa siempre necesita un servidor push (sigue en Pendientes).
+
+- **Cómo se muestran**: en Android/Chrome el constructor `new Notification()` está prohibido; hay que pedírselo al service worker (`registration.showNotification`). Se intenta primero por ahí y se cae al constructor en los navegadores de escritorio donde todavía no hay service worker registrado (por ejemplo con `npm run dev`, donde vite-plugin-pwa no lo registra). Por eso, para probar esto en el navegador hay que usar la build de producción (`npm run build` + `npm run preview`, entrada `habitos-preview` en `.claude/launch.json`), no `npm run dev`.
+- **El clic en la notificación** lo maneja `public/sw-notificaciones.js`, que se suma al service worker generado vía `workbox.importScripts` en `vite.config.ts` (así se sigue usando `generateSW`, sin pasar a `injectManifest`, que obligaría a mantener a mano toda la configuración de precache). Trae la app al frente si ya está abierta, o la abre si no.
+- **Una notificación por hábito por día**: se recuerda en `localStorage` (`habitos-tracker-recordatorios-notificados`, con la fecha, igual que los descartes) lo que ya se notificó. Solo se marcan como enviadas las que **efectivamente salieron**: si el envío falla, se reintenta en la próxima revisión en vez de darla por avisada. Si el permiso no está concedido no se intenta nada, para no reintentar en bucle.
+- **Preferencia propia** (`configuracion.notificacionesSistema`, apagada por defecto): tener permiso del navegador no alcanza, el usuario la prende explícitamente. La pantalla de Configuración muestra un estado distinto según el permiso — no soportado / bloqueado (con la explicación de cómo desbloquearlo en el teléfono) / botón "Permitir notificaciones" / interruptor prendido con un botón "Probar notificación". El permiso se pide desde el click del botón porque los navegadores lo exigen así.
+- Como `obtenerConfiguracion()` combina lo guardado con los valores por defecto, el campo nuevo no rompe configuraciones ni respaldos anteriores (hay una prueba de eso en `backup.test.ts`).
+- Probado: `notifications.test.ts` (qué falta notificar, textos, memoria por día) y verificado en el navegador contra la build de producción — la app le pide al service worker la notificación correcta (título, cuerpo, ícono y `tag` por hábito), no la repite el mismo día, vuelve a mandarla al día siguiente, el botón "Probar notificación" funciona, y los tres estados del permiso se muestran bien.
 
 ## Reglas de trabajo
 
@@ -173,11 +186,12 @@ El texto del aviso cambia según cuánto pasó: "Es hora de X" dentro de la prim
 - [x] **Más íconos y colores**: catálogo ampliado a ~94 íconos y 20 colores, con buscador en español (`buscarIconos`).
 - [x] **Gestión de categorías**: pantalla dedicada para crear, editar y eliminar categorías (`settings/CategoriesPage.tsx`, desde Configuración), verificada en navegador (crear, editar, y eliminar con reasignación de hábitos, sin errores de consola).
 - [x] **Sincronización entre dispositivos**, con Supabase (plan gratuito, sin costo): Sync A (uuid estable), Sync B (esquema Postgres + RLS), Sync C (inicio de sesión con link mágico), Sync D (motor de sincronización: push/pull, última escritura gana, borrados permanentes vía tombstones), Sync E (verificado de punta a punta en dispositivos reales del usuario — tablet Android + teléfono Android, misma cuenta: hábitos, marcar/desmarcar y borrados se reflejan correctamente entre los dos). En el camino se encontró y corrigió un bug real de sincronización muy seguida entre dos dispositivos (carrera del cursor, ver más abajo) — quedó además un botón "Forzar sincronización completa" como herramienta permanente para cualquier caso futuro de "no se actualizó".
-- [x] **Recordatorios corregidos**: el aviso por hora preferida no aparecía nunca (coincidencia de minuto exacto contra temporizadores frenados en segundo plano). Corregido y probado (136/136 pruebas automáticas pasando, verificado en navegador). Ver la sección "Bug de recordatorios" más arriba.
+- [x] **Recordatorios corregidos**: el aviso por hora preferida no aparecía nunca (coincidencia de minuto exacto contra temporizadores frenados en segundo plano). Corregido y probado (verificado en navegador). Ver la sección "Bug de recordatorios" más arriba.
+- [x] **Notificaciones del sistema (sin servidor)**: el teléfono avisa aunque la app esté minimizada, con permiso del usuario y un interruptor propio en Configuración (143/143 pruebas automáticas pasando, verificado en la build de producción con el service worker real). Falta confirmarlo en el Android del usuario.
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
 
-- Notificaciones push reales (requeriría backend) — deliberadamente después de terminar la sincronización.
+- Notificaciones push reales, las que llegan con la app **cerrada** (requieren un servidor push con claves VAPID; las notificaciones que ya existen, disparadas por la app abierta o minimizada, están hechas — ver arriba).
 - Registro/login de usuario, pagos, funciones sociales, IA/chat, integraciones con wearables — explícitamente fuera de alcance por pedido del usuario.
 - "Revisar historial" de un hábito desde la lista de gestión: resuelto de forma natural al existir el Calendario (Etapa 4) y las Estadísticas (Etapa 5); no hay un botón dedicado "ver historial" en cada hábito de la lista de gestión, pero cualquier hábito se puede revisar desde esas dos pantallas.
 - **Bug real encontrado al publicar en un Android real** (no aparece en `npm run dev` ni en las pruebas automáticas): si la app queda abierta en más de un lugar a la vez en el mismo dispositivo (ej. la pestaña de Chrome usada para instalarla + el ícono de la PWA ya instalada), una operación de guardado puede quedar colgada en "Guardando…" y trabar el resto de la app en "Cargando…" — es un comportamiento conocido de IndexedDB cuando hay más de una conexión abierta al mismo tiempo. Se resuelve cerrando todas las instancias y dejando abierta una sola. No se encontró una causa a nivel de código (no se reprodujo en las pruebas automáticas ni en el navegador de escritorio); documentado acá por si vuelve a aparecer.

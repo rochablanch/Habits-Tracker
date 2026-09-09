@@ -2,6 +2,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronRight,
+  Bell,
   Download,
   Moon,
   MonitorSmartphone,
@@ -20,6 +21,12 @@ import type { Configuracion } from '../db/types'
 import { useAuth } from '../sync/AuthContext'
 import { SyncSection } from '../sync/SyncSection'
 import { useTheme, type ThemePreference } from '../theme/ThemeContext'
+import {
+  estadoPermiso,
+  mostrarNotificacion,
+  pedirPermiso,
+  type EstadoPermiso,
+} from './notifications'
 import {
   construirRespaldo,
   nombreArchivoRespaldo,
@@ -71,6 +78,94 @@ function Interruptor({
         className="h-5 w-5 shrink-0 accent-brand-600"
       />
     </label>
+  )
+}
+
+function NotificacionesDelSistema({
+  activas,
+  onCambiar,
+}: {
+  activas: boolean
+  onCambiar: (valor: boolean) => void
+}) {
+  const [permiso, setPermiso] = useState<EstadoPermiso>(() => estadoPermiso())
+  const [avisoPrueba, setAvisoPrueba] = useState<string | null>(null)
+
+  async function permitir() {
+    const resultado = await pedirPermiso()
+    setPermiso(resultado)
+    if (resultado === 'granted') onCambiar(true)
+  }
+
+  async function probar() {
+    const salio = await mostrarNotificacion(
+      'Hábitos',
+      'Así se van a ver tus recordatorios.',
+      'prueba',
+    )
+    setAvisoPrueba(
+      salio
+        ? 'Notificación enviada. Si no la viste, revisá que las notificaciones de Hábitos estén permitidas en tu teléfono.'
+        : 'No se pudo mostrar la notificación en este dispositivo.',
+    )
+  }
+
+  const textoAyuda = 'Además del aviso dentro de la app, te llega una notificación del teléfono. Funciona mientras la app siga abierta o minimizada; si la cerrás del todo, no.'
+
+  if (permiso === 'no-soportado') {
+    return (
+      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+        Este navegador no permite notificaciones del sistema.
+      </p>
+    )
+  }
+
+  if (permiso === 'denied') {
+    return (
+      <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+        Las notificaciones están bloqueadas para esta app. Para usarlas, permitilas desde los ajustes del navegador o
+        del teléfono (Notificaciones → Hábitos) y volvé a esta pantalla.
+      </p>
+    )
+  }
+
+  if (permiso === 'default') {
+    return (
+      <div className="mt-3">
+        <p className="text-xs text-slate-500 dark:text-slate-400">{textoAyuda}</p>
+        <button
+          type="button"
+          onClick={permitir}
+          className="mt-2 flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+        >
+          <Bell className="h-4 w-4" aria-hidden="true" />
+          Permitir notificaciones
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-3">
+      <Interruptor
+        etiqueta="Notificaciones del sistema"
+        descripcion={textoAyuda}
+        activo={activas}
+        onCambiar={onCambiar}
+      />
+      {activas && (
+        <>
+          <button
+            type="button"
+            onClick={probar}
+            className="mt-2 rounded-xl border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-800 dark:text-slate-300"
+          >
+            Probar notificación
+          </button>
+          {avisoPrueba && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{avisoPrueba}</p>}
+        </>
+      )}
+    </div>
   )
 }
 
@@ -286,10 +381,16 @@ export function SettingsPage() {
         <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
           <Interruptor
             etiqueta="Recordatorios"
-            descripcion="Avisar cuando llega la hora preferida de un hábito, mientras la app está abierta"
+            descripcion="Avisar dentro de la app cuando llega la hora preferida de un hábito"
             activo={configuracion?.recordatoriosActivos ?? true}
             onCambiar={(v) => cambiarConfig({ recordatoriosActivos: v })}
           />
+          {(configuracion?.recordatoriosActivos ?? true) && (
+            <NotificacionesDelSistema
+              activas={configuracion?.notificacionesSistema ?? false}
+              onCambiar={(v) => cambiarConfig({ notificacionesSistema: v })}
+            />
+          )}
         </div>
       </Seccion>
 

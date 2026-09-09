@@ -67,6 +67,7 @@ export class HabitosDB extends Dexie {
         animaciones: true,
         frasesMotivacionales: true,
         recordatoriosActivos: true,
+        notificacionesSistema: false,
         onboardingCompletado: false,
       })
     })

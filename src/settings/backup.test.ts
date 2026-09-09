@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { db } from '../db/db'
 import { crearHabito } from '../db/habitsRepo'
 import { registrarCumplimiento } from '../db/logsRepo'
+import { obtenerConfiguracion } from '../db/settingsRepo'
 import type { NuevoHabito } from '../db/habitsRepo'
 import { construirRespaldo, nombreArchivoRespaldo, restaurarRespaldo, validarRespaldo, VERSION_RESPALDO } from './backup'
 
@@ -115,6 +116,7 @@ describe('restaurarRespaldo', () => {
         animaciones: false,
         frasesMotivacionales: false,
         recordatoriosActivos: false,
+        notificacionesSistema: false,
         onboardingCompletado: true,
       },
     }
@@ -178,6 +180,11 @@ describe('restaurarRespaldo', () => {
     const [habito] = await db.habitos.toArray()
     expect(habito.uuid).toBeTypeOf('string')
     expect(habito.uuid.length).toBeGreaterThan(0)
+
+    // Campos agregados después de ese respaldo (ej. las notificaciones del sistema)
+    // se completan con el valor por defecto en vez de quedar sin definir.
+    const configuracion = await obtenerConfiguracion()
+    expect(configuracion.notificacionesSistema).toBe(false)
   })
 })
 

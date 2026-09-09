@@ -58,6 +58,10 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Lo carga el service worker generado: maneja el clic en una notificación.
+        // Se excluye del precache porque ya se importa dentro del propio service worker.
+        globIgnores: ['**/sw-notificaciones.js'],
+        importScripts: ['sw-notificaciones.js'],
       },
     }),
   ],

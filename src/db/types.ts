@@ -103,6 +103,8 @@ export interface Configuracion {
   animaciones: boolean
   frasesMotivacionales: boolean
   recordatoriosActivos: boolean
+  /** Además del aviso dentro de la app, mostrar una notificación del sistema operativo. */
+  notificacionesSistema: boolean
   /** Si ya vio (o saltó) la introducción inicial. Controla si se muestra el onboarding. */
   onboardingCompletado: boolean
 }
