@@ -35,13 +35,52 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
 )
 
-const vapidKeys = await webpush.importVapidKeys(JSON.parse(Deno.env.get('VAPID_JWK')!), {
-  extractable: false,
-})
-const appServer = await webpush.ApplicationServer.new({
-  contactInformation: `mailto:${Deno.env.get('VAPID_EMAIL') ?? 'nadie@example.com'}`,
-  vapidKeys,
-})
+/**
+ * El servidor de aplicación (el que firma los avisos con las claves VAPID) se arma la primera
+ * vez que hace falta, no al arrancar: si el secreto VAPID_JWK estuviera mal pegado, así se
+ * devuelve un mensaje que se entiende en vez de que la función entera no levante.
+ */
+let appServerCache: Awaited<ReturnType<typeof webpush.ApplicationServer.new>> | null = null
+
+async function obtenerAppServer() {
+  if (appServerCache) return appServerCache
+  const crudo = Deno.env.get('VAPID_JWK')
+  if (!crudo) throw new Error('falta el secreto VAPID_JWK')
+
+  let jwk: unknown
+  try {
+    jwk = JSON.parse(crudo)
+  } catch {
+    throw new Error('el secreto VAPID_JWK no es un JSON válido')
+  }
+
+  const vapidKeys = await webpush.importVapidKeys(jwk as never, { extractable: false })
+  appServerCache = await webpush.ApplicationServer.new({
+    contactInformation: `mailto:${Deno.env.get('VAPID_EMAIL') ?? 'nadie@example.com'}`,
+    vapidKeys,
+  })
+  return appServerCache
+}
+
+/**
+ * Permisos para que el navegador deje llamar a esta función desde la app (CORS). La llamada del
+ * botón "Probar aviso del servidor" viaja con encabezados propios, así que el navegador manda
+ * antes una consulta OPTIONS preguntando si tiene permiso; si no se le contesta con estas
+ * cabeceras, corta la llamada y la app solo ve "Failed to send a request to the Edge Function".
+ * La tarea programada (servidor a servidor) no pasa por esto.
+ */
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+function responder(cuerpo: unknown, status = 200): Response {
+  return new Response(JSON.stringify(cuerpo), {
+    status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  })
+}
 
 /** 404/410 = el navegador ya no existe o desinstalaron la app: la suscripción quedó muerta. */
 function suscripcionMuerta(error: unknown): boolean {
@@ -55,6 +94,7 @@ async function enviar(
   mensaje: string,
 ): Promise<string | null> {
   try {
+    const appServer = await obtenerAppServer()
     const suscriptor = appServer.subscribe({
       endpoint: destino.endpoint,
       keys: { p256dh: destino.p256dh, auth: destino.auth },
@@ -83,7 +123,7 @@ async function enviar(
  */
 async function modoPrueba(token: string): Promise<Response> {
   const { data: usuario, error } = await supabase.auth.getUser(token)
-  if (error || !usuario?.user) return Response.json({ error: 'sesión inválida' }, { status: 401 })
+  if (error || !usuario?.user) return responder({ error: 'sesión inválida' }, 401)
 
   const { data: dispositivos } = await supabase
     .from('push_subscriptions')
@@ -91,7 +131,7 @@ async function modoPrueba(token: string): Promise<Response> {
     .eq('user_id', usuario.user.id)
 
   if (!dispositivos?.length) {
-    return Response.json({ error: 'este dispositivo todavía no está anotado' }, { status: 404 })
+    return responder({ error: 'este dispositivo todavía no está anotado para recibir avisos' }, 404)
   }
 
   const mensaje = JSON.stringify({
@@ -105,10 +145,13 @@ async function modoPrueba(token: string): Promise<Response> {
     if (falla) fallas.push(falla)
   }
 
-  return Response.json({ dispositivos: dispositivos.length, fallas })
+  return responder({ dispositivos: dispositivos.length, fallas })
 }
 
 Deno.serve(async (req) => {
+  // Consulta previa del navegador ("¿me dejás llamarte?"): se contesta y listo.
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
   const cuerpo = await req.json().catch(() => ({}))
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
   if (cuerpo?.prueba === true && token) {
@@ -116,11 +159,11 @@ Deno.serve(async (req) => {
   }
 
   if (req.headers.get('x-cron-secret') !== Deno.env.get('CRON_SECRET')) {
-    return new Response('no autorizado', { status: 401 })
+    return responder({ error: 'no autorizado' }, 401)
   }
 
   const { data, error } = await supabase.rpc('recordatorios_a_enviar')
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+  if (error) return responder({ error: error.message }, 500)
 
   const pendientes = (data ?? []) as Recordatorio[]
   let enviados = 0
@@ -150,5 +193,5 @@ Deno.serve(async (req) => {
     enviados++
   }
 
-  return Response.json({ pendientes: pendientes.length, enviados, fallas })
+  return responder({ pendientes: pendientes.length, enviados, fallas })
 })

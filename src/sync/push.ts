@@ -127,7 +127,22 @@ export async function probarPushDelServidor(): Promise<{ error: string | null }>
   const { data, error } = await supabase.functions.invoke('enviar-recordatorios', {
     body: { prueba: true },
   })
-  if (error) return { error: error.message }
+
+  if (error) {
+    // Si el servidor contestó algo (aunque sea un error), su mensaje explica mucho mejor qué
+    // pasó que el genérico del cliente. Si no contestó nada, es que no se lo pudo alcanzar.
+    const respuesta = (error as { context?: Response }).context
+    const detalle = await respuesta?.json?.().catch(() => null)
+    if (detalle?.error) return { error: detalle.error }
+    if (!respuesta) {
+      return {
+        error:
+          'no se pudo contactar al servidor (revisá que la función enviar-recordatorios esté publicada y con "Verify JWT" desactivado)',
+      }
+    }
+    return { error: error.message }
+  }
+
   const fallas = (data as { fallas?: string[] })?.fallas ?? []
   return { error: fallas.length > 0 ? fallas[0] : null }
 }
