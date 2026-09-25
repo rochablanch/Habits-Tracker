@@ -88,10 +88,18 @@ function suscripcionMuerta(error: unknown): boolean {
   return estado === 404 || estado === 410
 }
 
+/**
+ * Cuánto tiempo tiene sentido seguir intentando entregar un aviso (4 horas). Si el teléfono
+ * estuvo sin señal, el recordatorio llega cuando vuelva; pasado ese rato ya no sirve de nada,
+ * y es preferible que se descarte a que aparezca al otro día fuera de contexto.
+ */
+const HORAS_DE_VIDA = 4 * 60 * 60
+
 /** Manda un aviso suelto a un dispositivo. Devuelve null si salió bien, o el error. */
 async function enviar(
   destino: { endpoint: string; p256dh: string; auth: string },
   mensaje: string,
+  ttl = HORAS_DE_VIDA,
 ): Promise<string | null> {
   try {
     const appServer = await obtenerAppServer()
@@ -99,7 +107,10 @@ async function enviar(
       endpoint: destino.endpoint,
       keys: { p256dh: destino.p256dh, auth: destino.auth },
     })
-    await suscriptor.pushTextMessage(mensaje, {})
+    // Urgencia alta: le pide al servicio de notificaciones que despierte al teléfono en vez de
+    // guardar el aviso para cuando esté activo. Sin esto, Android puede retener el mensaje
+    // mientras la pantalla está apagada y recién mostrarlo cuando se abre la app.
+    await suscriptor.pushTextMessage(mensaje, { urgency: webpush.Urgency.High, ttl })
     return null
   } catch (e) {
     const detalle = e instanceof Error ? e.message : String(e)
@@ -141,7 +152,7 @@ async function modoPrueba(token: string): Promise<Response> {
   })
   const fallas: string[] = []
   for (const d of dispositivos) {
-    const falla = await enviar(d, mensaje)
+    const falla = await enviar(d, mensaje, 5 * 60)
     if (falla) fallas.push(falla)
   }
 

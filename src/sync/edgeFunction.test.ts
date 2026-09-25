@@ -16,7 +16,7 @@ import codigoEdgeFunction from '../../supabase/functions/enviar-recordatorios/in
  * "Failed to send a request to the Edge Function" sin llegar nunca al servidor.
  */
 async function montarFuncion(opciones: { vapidJwk?: string; envioFalla?: string } = {}) {
-  const enviados: { endpoint: string; mensaje: string }[] = []
+  const enviados: { endpoint: string; mensaje: string; opciones: Record<string, unknown> }[] = []
   const anotados: Record<string, unknown>[] = []
 
   const dispositivos = [{ endpoint: 'https://push.example/abc', p256dh: 'p', auth: 'a' }]
@@ -61,13 +61,14 @@ async function montarFuncion(opciones: { vapidJwk?: string; envioFalla?: string 
   }
 
   const webpushStub = {
+    Urgency: { High: 'high', Normal: 'normal' },
     importVapidKeys: vi.fn(async (jwk: unknown) => jwk),
     ApplicationServer: {
       new: vi.fn(async () => ({
         subscribe: (s: { endpoint: string }) => ({
-          pushTextMessage: async (mensaje: string) => {
+          pushTextMessage: async (mensaje: string, opcionesEnvio: Record<string, unknown>) => {
             if (opciones.envioFalla) throw new Error(opciones.envioFalla)
-            enviados.push({ endpoint: s.endpoint, mensaje })
+            enviados.push({ endpoint: s.endpoint, mensaje, opciones: opcionesEnvio })
           },
         }),
       })),
@@ -157,6 +158,24 @@ describe('Edge Function enviar-recordatorios', () => {
     )
     expect(r.status).toBe(401)
     expect(fn.enviados).toHaveLength(0)
+  })
+
+  it('pide entrega inmediata, para que el teléfono no guarde el aviso para después', async () => {
+    await fn.llamar(
+      pedido({ method: 'POST', headers: { 'x-cron-secret': 'secreto-del-cron' }, body: '{}' }),
+    )
+    expect(fn.enviados[0].opciones).toMatchObject({ urgency: 'high', ttl: 4 * 60 * 60 })
+  })
+
+  it('el aviso de prueba caduca enseguida, no sirve si llega horas después', async () => {
+    await fn.llamar(
+      pedido({
+        method: 'POST',
+        headers: { Authorization: 'Bearer token-bueno' },
+        body: JSON.stringify({ prueba: true }),
+      }),
+    )
+    expect(fn.enviados[0].opciones).toMatchObject({ urgency: 'high', ttl: 300 })
   })
 
   it('acepta el secreto aunque venga con espacios pegados', async () => {
