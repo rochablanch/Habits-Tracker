@@ -10,6 +10,9 @@
 --   3. tarea programada     : si el cron está corriendo cada minuto y cómo le fue.
 --   4. avisos ya enviados   : qué se mandó hoy.
 --   5. a enviar ahora mismo : lo que la función mandaría en este instante (o el error que da).
+--   6. qué contestó el servidor : la respuesta real de la Edge Function (el cron solo encola la
+--                                 llamada, así que su "succeeded" no alcanza para saber si anduvo).
+--   7. cómo está programada    : con qué dirección y con qué clave la está llamando el cron.
 -- ============================================================================
 
 create or replace function public.diagnostico_push()
@@ -72,6 +75,37 @@ begin
   exception when others then
     error_texto := sqlerrm;
     return query select '5. a enviar ahora mismo'::text, ('ERROR: ' || error_texto)::text;
+  end;
+
+  -- Lo importante: la tarea programada solo *encola* la llamada, así que "succeeded" no dice
+  -- si el servidor contestó bien. La respuesta de verdad queda acá.
+  begin
+    return query
+      select
+        '6. qué contestó el servidor'::text,
+        coalesce(
+          string_agg(
+            to_char(x.created, 'HH24:MI:SS') || ' → ' || coalesce(x.status_code::text, 'sin respuesta') ||
+            ' ' || coalesce(left(x.content, 120), '') || coalesce(' ERROR: ' || x.error_msg, ''),
+            ' || '
+          ),
+          'todavía no hay respuestas registradas'
+        )::text
+      from (select * from net._http_response order by created desc limit 5) x;
+  exception when others then
+    error_texto := sqlerrm;
+    return query select '6. qué contestó el servidor'::text, ('no se pudo leer: ' || error_texto)::text;
+  end;
+
+  begin
+    return query
+      select
+        '7. cómo está programada la tarea'::text,
+        coalesce(string_agg(j.jobname || ' [' || j.schedule || '] activa=' || j.active::text || ' → ' || left(regexp_replace(j.command, '\s+', ' ', 'g'), 300), ' || '), 'no hay tareas programadas')::text
+      from cron.job j;
+  exception when others then
+    error_texto := sqlerrm;
+    return query select '7. cómo está programada la tarea'::text, ('no se pudo leer: ' || error_texto)::text;
   end;
 end;
 $$;

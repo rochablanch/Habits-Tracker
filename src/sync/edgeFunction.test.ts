@@ -159,6 +159,26 @@ describe('Edge Function enviar-recordatorios', () => {
     expect(fn.enviados).toHaveLength(0)
   })
 
+  it('acepta el secreto aunque venga con espacios pegados', async () => {
+    // Pasa de verdad: al copiar una clave en un panel web se arrastra un espacio o un salto
+    // de línea, y el síntoma sería que no llega ningún recordatorio, sin ningún error visible.
+    const r = await fn.llamar(
+      pedido({ method: 'POST', headers: { 'x-cron-secret': ' secreto-del-cron ' }, body: '{}' }),
+    )
+    expect(r.status).toBe(200)
+    expect(fn.enviados).toHaveLength(1)
+  })
+
+  it('cuando rechaza la llamada, explica por qué', async () => {
+    const sinEncabezado = await fn.llamar(pedido({ method: 'POST', body: '{}' }))
+    expect((await sinEncabezado.json()).detalle).toContain('no trajo el encabezado')
+
+    const distinto = await fn.llamar(
+      pedido({ method: 'POST', headers: { 'x-cron-secret': 'otra-cosa' }, body: '{}' }),
+    )
+    expect((await distinto.json()).detalle).toContain('no coincide')
+  })
+
   it('el botón de prueba manda un aviso a los dispositivos de esa persona', async () => {
     const r = await fn.llamar(
       pedido({

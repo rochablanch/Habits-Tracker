@@ -158,8 +158,24 @@ Deno.serve(async (req) => {
     return await modoPrueba(token)
   }
 
-  if (req.headers.get('x-cron-secret') !== Deno.env.get('CRON_SECRET')) {
-    return responder({ error: 'no autorizado' }, 401)
+  // Se comparan sin espacios ni saltos de línea alrededor: al pegar una clave en el panel es
+  // muy fácil arrastrar uno sin darse cuenta, y el síntoma sería un 401 mudo.
+  const secretoRecibido = (req.headers.get('x-cron-secret') ?? '').trim()
+  const secretoEsperado = (Deno.env.get('CRON_SECRET') ?? '').trim()
+  if (!secretoEsperado || secretoRecibido !== secretoEsperado) {
+    // El detalle no revela ninguna de las dos claves, pero alcanza para entender qué pasó
+    // mirando la respuesta desde el diagnóstico (03-diagnostico.sql, paso 6).
+    return responder(
+      {
+        error: 'no autorizado',
+        detalle: !secretoEsperado
+          ? 'falta el secreto CRON_SECRET en la configuración de la función'
+          : secretoRecibido.length === 0
+            ? 'la llamada no trajo el encabezado x-cron-secret'
+            : `el x-cron-secret recibido (${secretoRecibido.length} caracteres) no coincide con CRON_SECRET (${secretoEsperado.length} caracteres)`,
+      },
+      401,
+    )
   }
 
   const { data, error } = await supabase.rpc('recordatorios_a_enviar')
