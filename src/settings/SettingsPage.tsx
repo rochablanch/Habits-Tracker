@@ -21,6 +21,7 @@ import type { Configuracion } from '../db/types'
 import { useAuth } from '../sync/AuthContext'
 import { SyncSection } from '../sync/SyncSection'
 import { useTheme, type ThemePreference } from '../theme/ThemeContext'
+import { PushSettings } from './PushSettings'
 import {
   estadoPermiso,
   mostrarNotificacion,
@@ -110,7 +111,7 @@ function NotificacionesDelSistema({
     )
   }
 
-  const textoAyuda = 'Además del aviso dentro de la app, te llega una notificación del teléfono. Funciona mientras la app siga abierta o minimizada; si la cerrás del todo, no.'
+  const textoAyuda = 'Además del cartel dentro de la app, te llega una notificación del teléfono mientras estés usando la app. Para que te llegue también con la app cerrada, está la opción de abajo.'
 
   if (permiso === 'no-soportado') {
     return (
@@ -165,6 +166,7 @@ function NotificacionesDelSistema({
           {avisoPrueba && <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">{avisoPrueba}</p>}
         </>
       )}
+      {activas && <PushSettings />}
     </div>
   )
 }

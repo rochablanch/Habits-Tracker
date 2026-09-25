@@ -77,6 +77,8 @@ src/
     ReminderWatcher.tsx     Recordatorios locales: muestra el aviso descartable en pantalla
     reminders.ts (+ .test.ts)  Qué hábitos corresponde recordar ahora, y memoria de los avisos descartados hoy
     notifications.ts (+ .test.ts)  Notificaciones del sistema operativo: permiso, envío y memoria de lo ya notificado
+    PushSettings.tsx        "Avisarme aunque la app esté cerrada": activar/desactivar y probar el aviso del servidor
+    StaleReload.tsx         Recarga la app si estuvo horas minimizada (no renderiza nada)
   sync/           Sincronización entre dispositivos (Supabase)
     supabaseClient.ts       Cliente de Supabase (URL + publishable key)
     AuthContext.tsx         Sesión actual de toda la app (`useAuth`)
@@ -84,12 +86,18 @@ src/
     SyncSection.tsx         Inicio/cierre de sesión, estado y botón manual (dentro de Configuración → Sincronización)
     mapping.ts (+ .test.ts) Traduce cada tipo de dato entre el formato local y el de Supabase; "última escritura gana"
     syncEngine.ts           El motor en sí: qué se sube, qué se baja, y en qué orden
+    push.ts (+ .test.ts)    Suscribir este dispositivo a las notificaciones del servidor (Web Push)
+    swNotificaciones.test.ts  Prueba del código que corre dentro del service worker (public/sw-notificaciones.js)
   onboarding/     Introducción inicial (ruta "/bienvenida")
     OnboardingPage.tsx      Bienvenida + elegir hábitos sugeridos (opcional) o crear el propio
     RequireOnboarding.tsx   Manda a "/bienvenida" si `configuracion.onboardingCompletado` es false
     suggestedHabits.ts (+ .test.ts)  Catálogo de hábitos sugeridos y su conversión a NuevoHabito
+supabase/           Lo que corre del lado del servidor (se pega a mano en Supabase, ver más abajo)
+  01-push-tablas.sql      Tablas push_subscriptions / push_enviados + la consulta recordatorios_a_enviar()
+  02-push-cron.sql        La tarea programada (pg_cron) que revisa cada minuto
+  functions/enviar-recordatorios/index.ts   Edge Function que manda las notificaciones
 public/
-  sw-notificaciones.js  Se suma al service worker de la PWA: qué hacer al tocar una notificación
+  sw-notificaciones.js  Se suma al service worker de la PWA: recibe el aviso del servidor y qué hacer al tocarlo
   icon.svg              Ícono base (favicon, y fuente para generar el resto)
   icon-192.png, icon-512.png, apple-touch-icon.png   Iconos PWA generados desde icon.svg (ver nota abajo)
 ```
@@ -163,6 +171,34 @@ El texto del aviso cambia según cuánto pasó: "Es hora de X" dentro de la prim
 - Como `obtenerConfiguracion()` combina lo guardado con los valores por defecto, el campo nuevo no rompe configuraciones ni respaldos anteriores (hay una prueba de eso en `backup.test.ts`).
 - Probado: `notifications.test.ts` (qué falta notificar, textos, memoria por día) y verificado en el navegador contra la build de producción — la app le pide al service worker la notificación correcta (título, cuerpo, ícono y `tag` por hábito), no la repite el mismo día, vuelve a mandarla al día siguiente, el botón "Probar notificación" funciona, y los tres estados del permiso se muestran bien.
 
+
+### Por qué la versión "sin servidor" no alcanzó (y qué la reemplazó)
+
+Reporte del usuario después de varios días de uso real: el recordatorio avisó **solo el primer día**, teniendo la app siempre minimizada. Y con el tiempo dejó de aparecer incluso el cartel dentro de la app al abrirla.
+
+Causa: en el celular el navegador **congela** una app minimizada a los pocos minutos (deja de ejecutar su código para ahorrar batería) y más tarde la descarta de memoria. Una app congelada no puede mirar el reloj ni mostrar nada. Todo lo que dispare la app misma —el cartel y la notificación local— depende de que el navegador la mantenga viva, y no lo hace. La afirmación anterior de esta documentación ("funciona minimizada") era optimista: vale por minutos, no por horas ni días.
+
+Dos respuestas, complementarias:
+
+1. **`StaleReload.tsx`** (arreglo del síntoma de "ya ni el cartel aparece"): si la app estuvo más de 4 horas en segundo plano, al volver a abrirla se recarga sola. Recuperarse de un estado congelado indeterminado es poco confiable —temporizadores frenados, la conexión con IndexedDB posiblemente cortada, y el código de la versión que se cargó hace días aunque ya haya una nueva publicada—; volver a cargar es instantáneo (todo es local) y deja la app limpia. No se encontró una causa puntual reproducible en escritorio, así que esto ataca la clase de problema, no un bug identificado.
+2. **Notificaciones push de verdad** (abajo): el aviso lo manda el servidor, así que no depende del estado del teléfono.
+
+### Notificaciones push desde el servidor (Supabase)
+
+Lo que hace que el recordatorio llegue con la app **cerrada** y el teléfono bloqueado. Usa el mismo Supabase de la sincronización, en el plan gratuito.
+
+- **Por qué se puede hacer sin backend propio**: los hábitos y los registros del usuario ya están en Supabase por la sincronización, así que el servidor tiene todo lo que necesita para decidir a quién avisar y cuándo. Sin sincronización activa (sesión iniciada) esto no funciona, y la pantalla de Configuración lo dice.
+- **Las piezas**:
+  - `supabase/01-push-tablas.sql`: `push_subscriptions` (qué dispositivo avisar, con su **zona horaria**) y `push_enviados` (qué ya se mandó, para no repetir), ambas con RLS igual que el resto. Y `recordatorios_a_enviar()`, que replica en SQL la misma regla que usa la app (`src/settings/reminders.ts`): hábito activo, con recordatorio y hora preferida, que aplica hoy según su frecuencia, cuya hora ya llegó *en la zona horaria de ese dispositivo*, sin registro ese día y sin aviso ya enviado.
+  - `supabase/functions/enviar-recordatorios/index.ts`: Edge Function (Deno) que pide esa lista y manda las notificaciones con `jsr:@negrel/webpush` (elegida sobre `npm:web-push` por estar hecha para Deno/Web Crypto). Tiene además un **modo prueba** (`{ prueba: true }` con la sesión de la persona) que manda un aviso suelto a sus dispositivos: es lo que usa el botón "Probar aviso del servidor" y la única forma de verificar la cadena completa a distancia.
+  - `supabase/02-push-cron.sql`: `pg_cron` llama a la función **cada minuto** (~43.000 invocaciones al mes, muy por debajo de las 500.000 del plan gratuito).
+  - `src/sync/push.ts` + `src/settings/PushSettings.tsx`: suscribir/desuscribir el dispositivo y guardarlo en Supabase. `public/sw-notificaciones.js` recibe el push y muestra la notificación aunque la app no esté corriendo.
+- **Claves VAPID**: el estándar exige un par de claves que identifican al servidor autorizado a mandarte notificaciones. La **pública** está en `src/sync/push.ts` (es pública por diseño, como la publishable key de Supabase); la **privada** vive solo en los secretos de la Edge Function (`VAPID_JWK`) y está fuera del repositorio (`.gitignore`). Si alguna vez hay que regenerarlas, hay que cambiar las dos a la vez y todos los dispositivos tienen que volver a activar la opción.
+- **Seguridad de la Edge Function**: se despliega con "Verify JWT" **apagado** (el cron no tiene sesión de usuario) y se protege con un secreto propio en el header `x-cron-secret`, que el cron manda y la función verifica. Así no hace falta poner la `service_role` key dentro de una tarea de cron. El modo prueba sí exige la sesión de la persona (`Authorization: Bearer`, validado con `auth.getUser`).
+- **Sin avisos duplicados**: mientras este dispositivo esté anotado en el servidor, la app no manda su notificación local (`pushActivoLocalmente()` en `ReminderWatcher`). Y como respaldo, las dos usan el mismo `tag` (`habito-<uuid>`), así que si igual llegaran las dos, el teléfono muestra una sola.
+- **Limitación heredada**: el servidor decide con los datos **sincronizados**. Si el teléfono estuvo sin internet y marcó un hábito, el servidor todavía no lo sabe y puede mandar un recordatorio de algo ya hecho. Se consideró aceptable frente a la alternativa (no avisar).
+- Probado: `push.test.ts` (conversión de claves, que si falla rompe el cifrado sin dar error claro) y `swNotificaciones.test.ts`, que **ejecuta de verdad** `public/sw-notificaciones.js` con un `self` simulado y le dispara eventos `push` y `notificationclick` — es la única forma de probar automáticamente el código que corre dentro del service worker.
+
 ## Reglas de trabajo
 
 - Etapas pequeñas; cada una se verifica corriendo la app antes de pasar a la siguiente.
@@ -187,11 +223,12 @@ El texto del aviso cambia según cuánto pasó: "Es hora de X" dentro de la prim
 - [x] **Gestión de categorías**: pantalla dedicada para crear, editar y eliminar categorías (`settings/CategoriesPage.tsx`, desde Configuración), verificada en navegador (crear, editar, y eliminar con reasignación de hábitos, sin errores de consola).
 - [x] **Sincronización entre dispositivos**, con Supabase (plan gratuito, sin costo): Sync A (uuid estable), Sync B (esquema Postgres + RLS), Sync C (inicio de sesión con link mágico), Sync D (motor de sincronización: push/pull, última escritura gana, borrados permanentes vía tombstones), Sync E (verificado de punta a punta en dispositivos reales del usuario — tablet Android + teléfono Android, misma cuenta: hábitos, marcar/desmarcar y borrados se reflejan correctamente entre los dos). En el camino se encontró y corrigió un bug real de sincronización muy seguida entre dos dispositivos (carrera del cursor, ver más abajo) — quedó además un botón "Forzar sincronización completa" como herramienta permanente para cualquier caso futuro de "no se actualizó".
 - [x] **Recordatorios corregidos**: el aviso por hora preferida no aparecía nunca (coincidencia de minuto exacto contra temporizadores frenados en segundo plano). Corregido y probado (verificado en navegador). Ver la sección "Bug de recordatorios" más arriba.
-- [x] **Notificaciones del sistema (sin servidor)**: el teléfono avisa aunque la app esté minimizada, con permiso del usuario y un interruptor propio en Configuración (143/143 pruebas automáticas pasando, verificado en la build de producción con el service worker real y confirmado por el usuario en su Android: pidió el permiso, la notificación de prueba llegó, y los recordatorios avisan).
+- [x] **Notificaciones del sistema (sin servidor)**: notificación disparada por la app, con permiso del usuario y un interruptor propio en Configuración. Confirmada en su Android el día que se publicó — pero **resultó insuficiente en el uso real** (ver "Por qué la versión sin servidor no alcanzó").
+- [~] **Notificaciones push desde el servidor**: código de la app, SQL y Edge Function listos y probados (152/152 pruebas automáticas, verificado en la build de producción). **Falta que el usuario pegue las dos partes de SQL y cree la Edge Function en su Supabase**, y después confirmar con el botón "Probar aviso del servidor" en su Android.
 
 ## Pendientes / mejoras futuras documentadas (fuera de alcance v1)
 
-- Notificaciones push reales, las que llegan con la app **cerrada** (requieren un servidor push con claves VAPID; las notificaciones que ya existen, disparadas por la app abierta o minimizada, están hechas — ver arriba).
+- Registrar la suscripción push de cada dispositivo **automáticamente** al iniciar sesión, en vez de con un interruptor por dispositivo. No se hizo así a propósito: activar notificaciones sin que la persona lo pida es una mala práctica, y el interruptor deja claro qué dispositivo va a sonar.
 - Registro/login de usuario, pagos, funciones sociales, IA/chat, integraciones con wearables — explícitamente fuera de alcance por pedido del usuario.
 - "Revisar historial" de un hábito desde la lista de gestión: resuelto de forma natural al existir el Calendario (Etapa 4) y las Estadísticas (Etapa 5); no hay un botón dedicado "ver historial" en cada hábito de la lista de gestión, pero cualquier hábito se puede revisar desde esas dos pantallas.
 - **Bug real encontrado al publicar en un Android real** (no aparece en `npm run dev` ni en las pruebas automáticas): si la app queda abierta en más de un lugar a la vez en el mismo dispositivo (ej. la pestaña de Chrome usada para instalarla + el ícono de la PWA ya instalada), una operación de guardado puede quedar colgada en "Guardando…" y trabar el resto de la app en "Cargando…" — es un comportamiento conocido de IndexedDB cuando hay más de una conexión abierta al mismo tiempo. Se resuelve cerrando todas las instancias y dejando abierta una sola. No se encontró una causa a nivel de código (no se reprodujo en las pruebas automáticas ni en el navegador de escritorio); documentado acá por si vuelve a aparecer.

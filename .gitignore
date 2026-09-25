@@ -21,3 +21,7 @@ npm-debug.log*
 
 # Copias de seguridad de datos descargadas durante pruebas manuales
 habitos-backup*.json
+
+# Claves privadas de las notificaciones push: nunca al repositorio.
+vapid.json
+*.vapid.json

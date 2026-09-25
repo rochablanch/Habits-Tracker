@@ -10,6 +10,7 @@ import { PanelPage } from './panel/PanelPage'
 import { AnimationsEffect } from './settings/AnimationsEffect'
 import { CategoriesPage } from './settings/CategoriesPage'
 import { ReminderWatcher } from './settings/ReminderWatcher'
+import { StaleReload } from './settings/StaleReload'
 import { SettingsPage } from './settings/SettingsPage'
 import { AuthProvider } from './sync/AuthContext'
 import { SyncProvider } from './sync/SyncContext'
@@ -27,6 +28,7 @@ function App() {
       <SyncProvider>
         <BrowserRouter>
           <AnimationsEffect />
+          <StaleReload />
           <ReminderWatcher />
           <Routes>
             <Route path="/bienvenida" element={<OnboardingPage />} />

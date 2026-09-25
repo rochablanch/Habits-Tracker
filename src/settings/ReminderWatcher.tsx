@@ -1,6 +1,7 @@
 import { Bell, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useConfiguracion, useHabitos, useRegistrosEnRango } from '../db/hooks'
+import { pushActivoLocalmente } from '../sync/push'
 import { todayISO } from '../utils/date'
 import {
   estadoPermiso,
@@ -77,13 +78,14 @@ export function ReminderWatcher() {
     })
   }, [configuracion, habitos, registrosHoy, ahora, descartados])
 
-  // Notificación del sistema operativo (si el usuario la activó y dio permiso): una por
-  // hábito por día. Se dispara desde acá, así que llega mientras la app siga viva —también
-  // minimizada o con la pantalla apagada— pero no si el usuario la cerró del todo.
+  // Notificación del sistema operativo disparada por la app: una por hábito por día. Solo
+  // sirve mientras el navegador mantenga la app viva (en el celular la congela a los pocos
+  // minutos de minimizarla), así que es el plan B: si este dispositivo está anotado para
+  // recibir los avisos del servidor, no se manda nada desde acá para no duplicar.
   const notificando = useRef(false)
   useEffect(() => {
     if (!configuracion?.notificacionesSistema || avisos.length === 0 || notificando.current) return
-    if (estadoPermiso() !== 'granted') return
+    if (estadoPermiso() !== 'granted' || pushActivoLocalmente()) return
 
     const yaNotificados = leerNotificados(ahora.fecha)
     const nuevos = sinNotificarTodavia(avisos, yaNotificados)
@@ -95,7 +97,7 @@ export function ReminderWatcher() {
     Promise.all(
       nuevos.map(async (habito) => {
         const { titulo, cuerpo } = textoNotificacion(habito)
-        const salio = await mostrarNotificacion(titulo, cuerpo, `habito-${habito.id}`)
+        const salio = await mostrarNotificacion(titulo, cuerpo, `habito-${habito.uuid}`)
         return salio ? habito.id : null
       }),
     )
