@@ -62,8 +62,16 @@ begin
   return query
     select
       '4. avisos enviados hoy'::text,
-      coalesce(string_agg(e.habito_uuid::text || ' ' || to_char(e.enviado_en, 'HH24:MI'), ', '), 'ninguno')::text
+      coalesce(
+        string_agg(
+          coalesce(h.nombre, e.habito_uuid::text) || ' a las ' ||
+          to_char(e.enviado_en at time zone coalesce((select s.zona_horaria from public.push_subscriptions s where s.user_id = e.user_id limit 1), 'America/Montevideo'), 'HH24:MI'),
+          ', ' order by e.enviado_en desc
+        ),
+        'ninguno'
+      )::text
     from public.push_enviados e
+    left join public.habitos h on h.uuid = e.habito_uuid
     where e.fecha_local >= current_date - 1;
 
   begin
