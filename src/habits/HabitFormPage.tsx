@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState'
 import { IconPicker } from '../components/IconPicker'
 import { useCategorias, useHabito } from '../db/hooks'
 import { actualizarHabito, crearHabito } from '../db/habitsRepo'
+import { useSync } from '../sync/SyncContext'
 import { COLOR_POR_DEFECTO } from './colors'
 import { DIAS_SEMANA, FRECUENCIAS, PRIORIDADES, TIPOS_HABITO, tipoUsaMeta, type DatosFormularioHabito } from './formTypes'
 import { ICONO_POR_DEFECTO } from './icons'
@@ -49,6 +50,7 @@ export function HabitFormPage() {
   const habitoExistente = useHabito(idEdicion)
   const categorias = useCategorias()
   const navigate = useNavigate()
+  const { sincronizarAhora } = useSync()
 
   const [datos, setDatos] = useState<DatosFormularioHabito>(FORMULARIO_VACIO)
   const [errores, setErrores] = useState<ErroresFormularioHabito>({})
@@ -89,6 +91,10 @@ export function HabitFormPage() {
       } else {
         await crearHabito({ ...payload, estado: 'activo' })
       }
+      // Sin esperar la respuesta: el servidor tiene que enterarse cuanto antes de un hábito
+      // nuevo (o de una hora cambiada) para poder mandar su recordatorio, y el ciclo normal de
+      // sincronización podría tardar hasta un minuto — o no llegar a correr, si se cierra la app.
+      void sincronizarAhora()
       navigate('/habitos')
     } finally {
       setGuardando(false)

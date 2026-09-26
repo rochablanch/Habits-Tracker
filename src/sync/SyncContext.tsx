@@ -47,16 +47,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     void sincronizarAhora()
 
     const intervalo = setInterval(() => void sincronizarAhora(), INTERVALO_MS)
-    const alVolverVisible = () => {
-      if (document.visibilityState === 'visible') void sincronizarAhora()
-    }
-    window.addEventListener('online', alVolverVisible)
-    document.addEventListener('visibilitychange', alVolverVisible)
+    // También al *irse* la app a segundo plano, no solo al volver: es el último momento en que
+    // se puede subir lo recién hecho antes de que el navegador la congele. Sin esto, un hábito
+    // creado y seguido de cerrar la app podía no llegar nunca al servidor, y entonces el
+    // recordatorio de ese hábito no salía.
+    const alCambiarVisibilidad = () => void sincronizarAhora()
+    window.addEventListener('online', alCambiarVisibilidad)
+    document.addEventListener('visibilitychange', alCambiarVisibilidad)
 
     return () => {
       clearInterval(intervalo)
-      window.removeEventListener('online', alVolverVisible)
-      document.removeEventListener('visibilitychange', alVolverVisible)
+      window.removeEventListener('online', alCambiarVisibilidad)
+      document.removeEventListener('visibilitychange', alCambiarVisibilidad)
     }
   }, [session, sincronizarAhora])
 
